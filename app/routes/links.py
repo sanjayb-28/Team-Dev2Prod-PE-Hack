@@ -1,5 +1,5 @@
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from urllib.parse import urlparse
 
 from flask import Blueprint, jsonify, redirect, request
@@ -42,6 +42,15 @@ def serialize_event(event):
         "timestamp": event.timestamp.isoformat(),
         "details": details,
     }
+
+
+def next_visible_timestamp(current_value):
+    now = datetime.now(UTC)
+    current_floor = current_value.astimezone(UTC).replace(microsecond=0)
+    now_floor = now.replace(microsecond=0)
+    if now_floor <= current_floor:
+        return current_floor + timedelta(seconds=1)
+    return now
 
 
 def validate_target_url(target_url):
@@ -147,7 +156,7 @@ def resolve_link(slug):
         return error_response("inactive_link", "This link is inactive.", 410)
 
     link.visit_count += 1
-    link.updated_at = datetime.now(UTC)
+    link.updated_at = next_visible_timestamp(link.updated_at)
     link.save()
     record_event(
         link,
@@ -214,7 +223,7 @@ def update_link(slug):
             )
         link.is_active = payload["isActive"]
 
-    link.updated_at = datetime.now(UTC)
+    link.updated_at = next_visible_timestamp(link.updated_at)
     link.save()
     record_event(
         link,

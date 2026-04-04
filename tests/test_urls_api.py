@@ -159,6 +159,23 @@ def test_create_url_rejects_unknown_fields(client):
     assert response.get_json()["error"]["details"] == {"fields": ["extra"]}
 
 
+def test_create_url_rejects_null_short_code_when_field_is_present(client):
+    create_user(1)
+
+    response = client.post(
+        "/urls",
+        json={
+            "user_id": 1,
+            "original_url": "https://example.com/test",
+            "title": "Test URL",
+            "short_code": None,
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.get_json()["error"]["message"] == "short_code must be plain text."
+
+
 def test_list_urls(client):
     create_user(1)
     create_link(1)
@@ -247,6 +264,21 @@ def test_list_urls_supports_active_filter(client):
     assert response.get_json()[0]["is_active"] is True
 
 
+def test_list_urls_supports_inactive_filter(client):
+    create_user(1)
+    active_link = create_link(1, slug="active1")
+    inactive_link = create_link(1, slug="inactive")
+    inactive_link.is_active = False
+    inactive_link.save()
+
+    response = client.get("/urls?is_active=false")
+
+    assert response.status_code == 200
+    assert len(response.get_json()) == 1
+    assert response.get_json()[0]["id"] == inactive_link.id
+    assert response.get_json()[0]["is_active"] is False
+
+
 def test_list_urls_returns_stable_id_order(client):
     create_user(1)
     first_link = Link.create(
@@ -309,6 +341,42 @@ def test_update_url_rejects_invalid_schema(client):
 
     assert response.status_code == 422
     assert response.get_json()["error"]["code"] == "validation_failed"
+
+
+def test_update_url_rejects_non_object_body(client):
+    create_user(1)
+    link = create_link(1)
+
+    response = client.put(
+        f"/urls/{link.id}",
+        data='"not-an-object"',
+        content_type="application/json",
+    )
+
+    assert response.status_code == 422
+    assert response.get_json()["error"]["message"] == "A JSON body is required."
+
+
+def test_update_url_advances_updated_at_for_fresh_records(client):
+    create_user(1)
+
+    created = client.post(
+        "/urls",
+        json={
+            "user_id": 1,
+            "original_url": "https://example.com/fresh-update",
+            "title": "Fresh update",
+        },
+    ).get_json()
+
+    response = client.put(
+        f"/urls/{created['id']}",
+        json={"title": "Updated title"},
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["updated_at"] > created["updated_at"]
 
 
 def test_update_url_allows_clearing_title(client):
@@ -448,3 +516,29 @@ def test_delete_url_is_idempotent(client):
         .count()
         == 1
     )
+
+
+def test_deactivated_public_url_does_not_resolve_or_record_click(client):
+    create_user(1)
+
+    created = client.post(
+        "/urls",
+        json={
+            "user_id": 1,
+            "original_url": "https://example.com/deactivated",
+            "title": "Deactivated",
+        },
+    ).get_json()
+
+    deactivate = client.put(
+        f"/urls/{created['id']}",
+        json={"is_active": False},
+    )
+    events_before = client.get("/events").get_json()
+
+    response = client.get(f"/{created['short_code']}", follow_redirects=False)
+
+    assert deactivate.status_code == 200
+    assert deactivate.get_json()["is_active"] is False
+    assert response.status_code == 410
+    assert client.get("/events").get_json() == events_before

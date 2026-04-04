@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from secrets import choice
 from string import ascii_letters, digits
 from urllib.parse import urlparse
@@ -30,6 +30,15 @@ CACHE_TTL_SECONDS = 120
 
 def format_timestamp(value):
     return value.replace(tzinfo=None).isoformat(timespec="seconds")
+
+
+def next_visible_timestamp(current_value):
+    now = datetime.now(UTC)
+    current_floor = current_value.astimezone(UTC).replace(microsecond=0)
+    now_floor = now.replace(microsecond=0)
+    if now_floor <= current_floor:
+        return current_floor + timedelta(seconds=1)
+    return now
 
 
 def serialize_url(link):
@@ -225,9 +234,9 @@ def create_url():
     if title_error:
         return error_response("validation_failed", title_error, 422)
 
+    short_code_was_provided = "short_code" in payload
     short_code = payload.get("short_code")
-    short_code_was_provided = short_code is not None
-    if short_code is not None:
+    if short_code_was_provided:
         short_code_error = validate_short_code(short_code)
         if short_code_error:
             return error_response("validation_failed", short_code_error, 422)
@@ -279,7 +288,14 @@ def update_url(url_id):
         return error_response("not_found", "We could not find that URL.", 404)
 
     payload = request.get_json(silent=True)
-    if not isinstance(payload, dict) or not payload:
+    if not isinstance(payload, dict):
+        return error_response(
+            "validation_failed",
+            "A JSON body is required.",
+            422,
+        )
+
+    if not payload:
         return error_response(
             "validation_failed",
             "Include at least one field to update.",
@@ -325,7 +341,7 @@ def update_url(url_id):
             )
         link.is_active = payload["is_active"]
 
-    link.updated_at = datetime.now(UTC)
+    link.updated_at = next_visible_timestamp(link.updated_at)
     link.save()
     record_event(
         link,
@@ -348,7 +364,7 @@ def delete_url(url_id):
 
     if link.is_active:
         link.is_active = False
-        link.updated_at = datetime.now(UTC)
+        link.updated_at = next_visible_timestamp(link.updated_at)
         link.save()
         record_event(
             link,
