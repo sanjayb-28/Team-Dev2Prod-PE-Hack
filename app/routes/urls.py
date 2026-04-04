@@ -139,8 +139,8 @@ def generate_short_code(length=6):
 
 def resolve_create_url_conflict(short_code):
     if Link.select().where(Link.slug == short_code).exists():
-        return error_response("conflict", "That short code is already in use.", 409)
-    return None
+        return True
+    return False
 
 
 @urls_bp.get("/urls")
@@ -247,10 +247,7 @@ def create_url():
             )
             break
         except IntegrityError:
-            conflict_response = resolve_create_url_conflict(short_code)
-            if conflict_response is not None:
-                if short_code_was_provided:
-                    return conflict_response
+            if resolve_create_url_conflict(short_code):
                 short_code = generate_short_code()
                 continue
 

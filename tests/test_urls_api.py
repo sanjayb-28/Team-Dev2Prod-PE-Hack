@@ -392,6 +392,27 @@ def test_create_url_regenerates_when_generated_short_code_is_taken(client, monke
     assert Link.select().where(Link.slug == "fresh2").exists()
 
 
+def test_create_url_regenerates_when_requested_short_code_is_taken(client, monkeypatch):
+    create_user(1)
+    create_link(1, slug="taken1")
+    monkeypatch.setattr(urls_module, "generate_short_code", lambda length=6: "fresh2")
+
+    response = client.post(
+        "/urls",
+        json={
+            "user_id": 1,
+            "original_url": "https://example.com/fresh-requested",
+            "title": "Fresh requested URL",
+            "short_code": "taken1",
+        },
+    )
+
+    assert response.status_code == 201
+    payload = response.get_json()
+    assert payload["short_code"] == "fresh2"
+    assert Link.select().where(Link.slug == "fresh2").exists()
+
+
 def test_delete_url(client):
     create_user(1)
     link = create_link(1, slug="delete-url")
