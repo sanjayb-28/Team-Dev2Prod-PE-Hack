@@ -86,7 +86,10 @@ export default function HomePage({ onNavigate }: HomePageProps) {
       <section className="landing-hero">
         <div className="landing-hero__copy">
           <p className="eyebrow">Dev2Prod</p>
-          <h1>Operate one service from fault to steady state.</h1>
+          <h1 className="landing-hero__headline">
+            <span>Operate one service</span>
+            <span className="landing-hero__headline-fill">from fault to steady state.</span>
+          </h1>
           <p className="landing-hero__intro">
             Keep the live service readable while it is being stressed, scaled, or traced.
             The product stays focused on one workload and one clean operating flow.
@@ -107,10 +110,21 @@ export default function HomePage({ onNavigate }: HomePageProps) {
               View observability
             </button>
           </div>
-        </div>
 
-        <div className="landing-hero__visual">
-          <img src="/k8s.avif" alt="" className="hero-visual-image" />
+          <dl className="landing-hero__facts">
+            <div>
+              <dt>Scope</dt>
+              <dd>One cluster, one namespace, one workload</dd>
+            </div>
+            <div>
+              <dt>Focus</dt>
+              <dd>Faults, scale, and signals in one surface</dd>
+            </div>
+            <div>
+              <dt>Mode</dt>
+              <dd>{state === 'ready' ? 'Live environment' : 'Status loading'}</dd>
+            </div>
+          </dl>
         </div>
       </section>
 
