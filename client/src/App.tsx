@@ -61,21 +61,21 @@ function renderPage(page: PageName, onNavigate: (nextPage: PageName) => void) {
     return (
       <SurfacePage
         eyebrow="Performance"
-        title="Load, scale, and cache in one readable flow."
-        intro="This surface will hold the benchmark story: baseline load, scale-out behavior, caching impact, and the notes that explain where the service bends first."
-        summary="The goal is to present recent results clearly before exposing raw benchmark detail."
+        title="Baseline load and scale-out in one lab."
+        intro="This surface now tracks two concrete lanes: a single-instance baseline and a two-instance scale path behind Nginx."
+        summary="The local scale lab is set up to prove a 50-user baseline first, then a 200-user load-balanced run with the same workload."
         sections={[
           {
-            title: 'Scenario summary',
-            body: 'Keep baseline, scale-out, and cache scenarios readable from one top summary instead of scattering the load story across logs and screenshots.',
+            title: 'Baseline lane',
+            body: 'Run the Bronze path against one workload instance and capture p95 latency plus error rate from the 50-user k6 output.',
           },
           {
-            title: 'Topology view',
-            body: 'Show the scale lab setup with the workload fleet, Nginx, Postgres, Redis, and the benchmark runner in a simple visual layout.',
+            title: 'Scale lane',
+            body: 'Run the Silver path through Nginx across two workload instances and confirm the 200-user run stays under the response-time target.',
           },
           {
-            title: 'Bottleneck notes',
-            body: 'Capture what limited throughput, how the team found it, and what changed after the optimization pass.',
+            title: 'Lab shape',
+            body: 'The scale lab now includes Postgres, one baseline workload service, a two-instance workload fleet, one Nginx gateway, and k6 scenarios for both runs.',
           },
         ]}
       />
