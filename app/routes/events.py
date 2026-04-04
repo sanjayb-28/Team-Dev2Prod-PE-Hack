@@ -1,8 +1,9 @@
 import json
 
 from flask import Blueprint, jsonify, request
-from peewee import DoesNotExist
+from peewee import DoesNotExist, IntegrityError
 
+from app.database import sync_primary_key_sequence
 from app.errors import error_response
 from app.models import Event, Link, User
 
@@ -161,11 +162,20 @@ def create_event():
                 422,
             )
 
-    event = Event.create(
-        link=link,
-        user_id=user_id,
-        event_type=payload["event_type"].strip(),
-        details=details,
-    )
+    try:
+        event = Event.create(
+            link=link,
+            user_id=user_id,
+            event_type=payload["event_type"].strip(),
+            details=details,
+        )
+    except IntegrityError:
+        sync_primary_key_sequence(Event)
+        event = Event.create(
+            link=link,
+            user_id=user_id,
+            event_type=payload["event_type"].strip(),
+            details=details,
+        )
 
     return jsonify(serialize_event(event)), 201

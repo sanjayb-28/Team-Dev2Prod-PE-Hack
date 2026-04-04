@@ -1,5 +1,6 @@
 from datetime import UTC, datetime
 
+from app.database import db
 from app.models import Event, Link, User
 
 
@@ -113,6 +114,38 @@ def test_create_event(client):
     assert payload["user_id"] == 1
     assert payload["event_type"] == "click"
     assert payload["details"] == {"referrer": "https://google.com"}
+
+
+def test_create_event_recovers_when_id_sequence_is_behind(client):
+    create_user(1)
+    link = create_link(1)
+    Event.create(link=link, user_id=1, event_type="created")
+    Event.create(link=link, user_id=1, event_type="updated")
+    db.execute_sql(
+        """
+        SELECT setval(
+            pg_get_serial_sequence('event', 'id'),
+            1,
+            TRUE
+        )
+        """
+    )
+
+    response = client.post(
+        "/events",
+        json={
+            "url_id": link.id,
+            "user_id": 1,
+            "event_type": "click",
+            "details": {"referrer": "https://google.com"},
+        },
+    )
+
+    assert response.status_code == 201
+    payload = response.get_json()
+    assert payload["id"] == 3
+    assert payload["url_id"] == link.id
+    assert payload["user_id"] == 1
 
 
 def test_create_event_rejects_non_object_details(client):

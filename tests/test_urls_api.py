@@ -1,6 +1,7 @@
 import json
 from datetime import UTC, datetime
 
+from app.database import db
 from app.models import Event, Link, User
 
 
@@ -44,6 +45,36 @@ def test_create_url(client):
     assert payload["title"] == "Test URL"
     assert payload["is_active"] is True
     assert len(payload["short_code"]) == 6
+
+
+def test_create_url_recovers_when_id_sequence_is_behind(client):
+    create_user(1)
+    create_link(1, slug="seed01")
+    create_link(1, slug="seed02")
+    db.execute_sql(
+        """
+        SELECT setval(
+            pg_get_serial_sequence('link', 'id'),
+            1,
+            TRUE
+        )
+        """
+    )
+
+    response = client.post(
+        "/urls",
+        json={
+            "user_id": 1,
+            "original_url": "https://example.com/test-sequence",
+            "title": "Sequence recovery",
+        },
+    )
+
+    assert response.status_code == 201
+    payload = response.get_json()
+    assert payload["id"] == 3
+    assert payload["user_id"] == 1
+    assert payload["original_url"] == "https://example.com/test-sequence"
 
 
 def test_create_url_rejects_missing_user(client):

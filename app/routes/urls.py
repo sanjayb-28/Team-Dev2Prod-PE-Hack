@@ -6,6 +6,7 @@ from urllib.parse import urlparse
 from flask import Blueprint, jsonify, request
 from peewee import DoesNotExist, IntegrityError
 
+from app.database import sync_primary_key_sequence
 from app.errors import error_response
 from app.models import Link, User
 from app.services import record_event
@@ -121,6 +122,12 @@ def generate_short_code(length=6):
     raise RuntimeError("Could not generate a unique short code.")
 
 
+def resolve_create_url_conflict(short_code):
+    if Link.select().where(Link.slug == short_code).exists():
+        return error_response("conflict", "That short code is already in use.", 409)
+    return None
+
+
 @urls_bp.get("/urls")
 def list_urls():
     urls = Link.select().order_by(Link.id)
@@ -200,7 +207,26 @@ def create_url():
             title=payload.get("title").strip() if payload.get("title", "").strip() else None,
         )
     except IntegrityError:
-        return error_response("conflict", "That short code is already in use.", 409)
+        conflict_response = resolve_create_url_conflict(short_code)
+        if conflict_response is not None:
+            return conflict_response
+
+        sync_primary_key_sequence(Link)
+
+        try:
+            link = Link.create(
+                slug=short_code,
+                user_id=payload["user_id"],
+                target_url=payload["original_url"].strip(),
+                title=payload.get("title").strip()
+                if payload.get("title", "").strip()
+                else None,
+            )
+        except IntegrityError:
+            conflict_response = resolve_create_url_conflict(short_code)
+            if conflict_response is not None:
+                return conflict_response
+            raise
 
     record_event(
         link,
