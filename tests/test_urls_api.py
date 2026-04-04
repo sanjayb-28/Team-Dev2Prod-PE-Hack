@@ -65,6 +65,7 @@ def test_create_url(client):
     assert payload["original_url"] == "https://example.com/test"
     assert payload["title"] == "Test URL"
     assert payload["is_active"] is True
+    assert payload["visit_count"] == 0
     assert len(payload["short_code"]) == 6
 
 
@@ -191,6 +192,7 @@ def test_list_urls(client):
             "original_url": "https://opswise.net/harbor/journey/1",
             "title": "Service guide lagoon",
             "is_active": True,
+            "visit_count": 0,
             "created_at": "2025-06-04T00:07:00",
             "updated_at": "2025-11-19T03:17:29",
         }
@@ -315,6 +317,7 @@ def test_get_url_by_id(client):
     assert payload["id"] == 1
     assert payload["short_code"] == "ALQRog"
     assert payload["original_url"] == "https://opswise.net/harbor/journey/1"
+    assert payload["visit_count"] == 0
 
 
 def test_update_url_details(client):
@@ -331,6 +334,7 @@ def test_update_url_details(client):
     assert payload["id"] == link.id
     assert payload["title"] == "Updated Title"
     assert payload["is_active"] is False
+    assert payload["visit_count"] == 0
 
 
 def test_update_url_rejects_invalid_schema(client):
@@ -556,3 +560,22 @@ def test_deactivated_public_url_does_not_resolve_or_record_click(client):
     assert deactivate.get_json()["is_active"] is False
     assert response.status_code == 410
     assert client.get("/events").get_json() == events_before
+
+
+def test_resolving_public_short_code_updates_visit_count(client):
+    create_user(1)
+
+    created = client.post(
+        "/urls",
+        json={
+            "user_id": 1,
+            "original_url": "https://example.com/visit-count",
+            "title": "Visit count",
+        },
+    ).get_json()
+
+    response = client.get(f"/{created['short_code']}", follow_redirects=False)
+
+    assert response.status_code == 302
+    detail = client.get(f"/urls/{created['id']}").get_json()
+    assert detail["visit_count"] == 1

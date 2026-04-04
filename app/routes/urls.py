@@ -33,8 +33,12 @@ def format_timestamp(value):
 
 
 def next_visible_timestamp(current_value):
-    now = datetime.now(UTC)
-    current_floor = current_value.astimezone(UTC).replace(microsecond=0)
+    if current_value.tzinfo is None:
+        now = datetime.now().replace(microsecond=0)
+        current_floor = current_value.replace(microsecond=0)
+    else:
+        now = datetime.now(UTC)
+        current_floor = current_value.astimezone(UTC).replace(microsecond=0)
     now_floor = now.replace(microsecond=0)
     if now_floor <= current_floor:
         return current_floor + timedelta(seconds=1)
@@ -49,6 +53,7 @@ def serialize_url(link):
         "original_url": link.target_url,
         "title": link.title,
         "is_active": link.is_active,
+        "visit_count": link.visit_count,
         "created_at": format_timestamp(link.created_at),
         "updated_at": format_timestamp(link.updated_at),
     }
