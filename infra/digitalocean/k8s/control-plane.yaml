@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: control-plane
+  namespace: dev2prod
+  labels:
+    app.kubernetes.io/name: control-plane
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: control-plane
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: control-plane
+    spec:
+      serviceAccountName: control-plane
+      containers:
+        - name: control-plane
+          image: __BACKEND_IMAGE__
+          imagePullPolicy: IfNotPresent
+          command: ["uv", "run", "python", "run_control_plane.py"]
+          envFrom:
+            - configMapRef:
+                name: platform-config
+          env:
+            - name: APP_DEBUG
+              value: "false"
+            - name: APP_HOST
+              value: 0.0.0.0
+            - name: CONTROL_PLANE_PORT
+              value: "8000"
+            - name: WORKLOAD_API_URL
+              value: http://workload-api:5000
+          ports:
+            - containerPort: 8000
+              name: http
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: control-plane
+  namespace: dev2prod
+spec:
+  selector:
+    app.kubernetes.io/name: control-plane
+  ports:
+    - port: 8000
+      targetPort: http
+      name: http
