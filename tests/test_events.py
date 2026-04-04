@@ -54,7 +54,7 @@ def test_update_link_records_updated_event(client):
     assert [event.event_type for event in events] == ["created", "updated"]
 
 
-def test_resolve_link_records_resolved_event(client):
+def test_resolve_link_records_click_event(client):
     client.post(
         "/api/links",
         json={
@@ -68,7 +68,7 @@ def test_resolve_link_records_resolved_event(client):
     link = Link.get(Link.slug == "event-resolved")
     events = list(Event.select().where(Event.link == link).order_by(Event.id))
 
-    assert [event.event_type for event in events] == ["created", "resolved"]
+    assert [event.event_type for event in events] == ["created", "click"]
 
 
 def test_list_link_events_returns_recent_events_first(client):

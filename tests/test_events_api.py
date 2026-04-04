@@ -137,6 +137,30 @@ def test_create_event_allows_missing_details(client):
     assert payload["details"] is None
 
 
+def test_resolving_short_code_records_click_event_in_events_feed(client):
+    create_user(1)
+
+    created = client.post(
+        "/urls",
+        json={
+            "user_id": 1,
+            "original_url": "https://example.com/journey",
+            "title": "Journey",
+        },
+    ).get_json()
+
+    response = client.get(f"/{created['short_code']}", follow_redirects=False)
+
+    assert response.status_code == 302
+
+    events = client.get("/events").get_json()
+    assert [event["event_type"] for event in events] == ["created", "click"]
+    assert events[-1]["details"] == {
+        "short_code": created["short_code"],
+        "original_url": "https://example.com/journey",
+    }
+
+
 def test_create_event_recovers_when_id_sequence_is_behind(client):
     create_user(1)
     link = create_link(1)

@@ -92,4 +92,4 @@ def test_resolve_link_flow_increments_visits_and_records_event(client):
     assert link.visit_count == 1
 
     events = list(Event.select().where(Event.link == link).order_by(Event.id))
-    assert [event.event_type for event in events] == ["created", "resolved"]
+    assert [event.event_type for event in events] == ["created", "click"]
