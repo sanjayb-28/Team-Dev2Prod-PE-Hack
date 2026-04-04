@@ -178,8 +178,6 @@ def test_resolving_short_code_advances_updated_at_for_fresh_urls(client):
     assert response.status_code == 302
     detail = client.get(f"/urls/{created['id']}").get_json()
     assert detail["updated_at"] > created["updated_at"]
-
-
 def test_create_event_recovers_when_id_sequence_is_behind(client):
     create_user(1)
     link = create_link(1)
