@@ -123,10 +123,18 @@ export interface WorkloadScaleStatus {
   availableReplicas: number
 }
 
+export interface ScaleLabCacheProof {
+  path: string
+  first?: string | null
+  second?: string | null
+  status: string
+}
+
 export interface ScaleLabSnapshot {
   enabled: boolean
   mode: string
   lanes: ScaleLabLane[]
   workloadScale: WorkloadScaleStatus | null
   runs: ScaleLabRun[]
+  cacheProof: ScaleLabCacheProof | null
 }

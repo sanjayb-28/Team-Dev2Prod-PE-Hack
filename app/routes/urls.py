@@ -6,6 +6,14 @@ from urllib.parse import urlparse
 from flask import Blueprint, jsonify, request
 from peewee import DoesNotExist, IntegrityError
 
+from app.cache import (
+    URL_CACHE_PREFIX,
+    cache_status_header,
+    get_cached_json,
+    invalidate_cache_prefix,
+    set_cached_json,
+    url_cache_key,
+)
 from app.database import sync_primary_key_sequence
 from app.errors import error_response
 from app.models import Link, User
@@ -17,6 +25,7 @@ CREATE_FIELDS = {"user_id", "original_url", "title", "short_code"}
 SHORT_CODE_ALPHABET = ascii_letters + digits
 SHORT_CODE_MAX_LENGTH = 32
 TITLE_MAX_LENGTH = 160
+CACHE_TTL_SECONDS = 120
 
 
 def format_timestamp(value):
@@ -34,6 +43,12 @@ def serialize_url(link):
         "created_at": format_timestamp(link.created_at),
         "updated_at": format_timestamp(link.updated_at),
     }
+
+
+def cached_json_response(payload, cache_status: str):
+    response = jsonify(payload)
+    response.headers["X-Cache"] = cache_status_header(cache_status)
+    return response
 
 
 def validate_original_url(original_url):
@@ -130,33 +145,52 @@ def resolve_create_url_conflict(short_code):
 
 @urls_bp.get("/urls")
 def list_urls():
-    urls = Link.select().order_by(Link.id)
-
     raw_user_id = request.args.get("user_id")
+    user_id = None
     if raw_user_id is not None:
         try:
             user_id = parse_positive_int_query(raw_user_id, "user_id")
         except ValueError as error:
             return error_response("validation_failed", str(error), 422)
-        urls = urls.where(Link.user_id == user_id)
 
-    is_active = request.args.get("is_active")
-    if is_active is not None:
+    raw_is_active = request.args.get("is_active")
+    is_active = None
+    if raw_is_active is not None:
         try:
-            urls = urls.where(Link.is_active == parse_bool_query(is_active))
+            is_active = parse_bool_query(raw_is_active)
         except ValueError as error:
             return error_response("validation_failed", str(error), 422)
 
-    return jsonify([serialize_url(link) for link in urls])
+    cache_key = url_cache_key(user_id=user_id, is_active=is_active)
+    cached_payload, cache_status = get_cached_json(cache_key)
+    if cached_payload is not None:
+        return cached_json_response(cached_payload, cache_status)
+
+    urls = Link.select().order_by(Link.id)
+    if user_id is not None:
+        urls = urls.where(Link.user_id == user_id)
+    if is_active is not None:
+        urls = urls.where(Link.is_active == is_active)
+
+    payload = [serialize_url(link) for link in urls]
+    set_cached_json(cache_key, payload, CACHE_TTL_SECONDS)
+    return cached_json_response(payload, cache_status)
 
 
 @urls_bp.get("/urls/<int:url_id>")
 def get_url(url_id):
+    cache_key = url_cache_key(url_id)
+    cached_payload, cache_status = get_cached_json(cache_key)
+    if cached_payload is not None:
+        return cached_json_response(cached_payload, cache_status)
+
     link = get_url_or_none(url_id)
     if link is None:
         return error_response("not_found", "We could not find that URL.", 404)
 
-    return jsonify(serialize_url(link))
+    payload = serialize_url(link)
+    set_cached_json(cache_key, payload, CACHE_TTL_SECONDS)
+    return cached_json_response(payload, cache_status)
 
 
 @urls_bp.post("/urls")
@@ -237,6 +271,7 @@ def create_url():
         },
     )
 
+    invalidate_cache_prefix(URL_CACHE_PREFIX)
     return jsonify(serialize_url(link)), 201
 
 
@@ -304,6 +339,7 @@ def update_url(url_id):
         },
     )
 
+    invalidate_cache_prefix(URL_CACHE_PREFIX)
     return jsonify(serialize_url(link))
 
 
@@ -325,4 +361,5 @@ def delete_url(url_id):
             },
         )
 
+    invalidate_cache_prefix(URL_CACHE_PREFIX)
     return ("", 204)

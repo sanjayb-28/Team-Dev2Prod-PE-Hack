@@ -33,6 +33,8 @@ spec:
                 secretKeyRef:
                   name: workload-env
                   key: DATABASE_URL
+            - name: REDIS_URL
+              value: redis://redis:6379/0
           ports:
             - containerPort: 5000
               name: http

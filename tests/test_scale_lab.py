@@ -71,4 +71,5 @@ def test_build_scale_lab_payload_returns_local_mode_without_cluster(monkeypatch)
         ],
         "workloadScale": None,
         "runs": [],
+        "cacheProof": None,
     }

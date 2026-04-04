@@ -1,6 +1,7 @@
 import json
 from datetime import UTC, datetime
 
+from app import cache as cache_module
 from app.database import db
 from app.models import Event, Link, User
 
@@ -23,6 +24,25 @@ def create_link(user_id, slug="ALQRog", title="Service guide lagoon"):
         created_at=datetime(2025, 6, 4, 0, 7, 0, tzinfo=UTC),
         updated_at=datetime(2025, 11, 19, 3, 17, 29, tzinfo=UTC),
     )
+
+
+class FakeCacheClient:
+    def __init__(self):
+        self.values = {}
+
+    def get(self, key):
+        return self.values.get(key)
+
+    def setex(self, key, ttl_seconds, value):
+        self.values[key] = value
+
+    def scan_iter(self, match):
+        prefix = match.rstrip("*")
+        return [key for key in self.values if key.startswith(prefix)]
+
+    def delete(self, *keys):
+        for key in keys:
+            self.values.pop(key, None)
 
 
 def test_create_url(client):
@@ -157,6 +177,38 @@ def test_list_urls(client):
             "updated_at": "2025-11-19T03:17:29",
         }
     ]
+
+
+def test_list_urls_reports_cache_miss_then_hit(client, monkeypatch):
+    create_user(1)
+    create_link(1)
+    fake_cache = FakeCacheClient()
+    monkeypatch.setattr(cache_module, "_cache_client", fake_cache)
+    monkeypatch.setattr(cache_module, "_cache_enabled", True)
+
+    first_response = client.get("/urls")
+    second_response = client.get("/urls")
+
+    assert first_response.status_code == 200
+    assert first_response.headers["X-Cache"] == "MISS"
+    assert second_response.status_code == 200
+    assert second_response.headers["X-Cache"] == "HIT"
+
+
+def test_update_url_invalidates_list_cache(client, monkeypatch):
+    create_user(1)
+    link = create_link(1)
+    fake_cache = FakeCacheClient()
+    monkeypatch.setattr(cache_module, "_cache_client", fake_cache)
+    monkeypatch.setattr(cache_module, "_cache_enabled", True)
+
+    warm_response = client.get("/urls")
+    update_response = client.put(f"/urls/{link.id}", json={"title": "Fresh title"})
+    refreshed_response = client.get("/urls")
+
+    assert warm_response.headers["X-Cache"] == "MISS"
+    assert update_response.status_code == 200
+    assert refreshed_response.headers["X-Cache"] == "MISS"
 
 
 def test_list_urls_supports_user_filter(client):
