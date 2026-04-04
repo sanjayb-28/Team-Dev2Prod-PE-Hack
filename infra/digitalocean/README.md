@@ -14,9 +14,13 @@ The client container proxies `/api/*` to the in-cluster control plane, so the br
 - A DOKS cluster
 - A DigitalOcean Container Registry linked to that cluster
 - A GitHub Actions secret named `DIGITALOCEAN_ACCESS_TOKEN`
-- A GitHub Actions secret named `DOCR_REGISTRY`
-- A GitHub Actions secret named `DOKS_CLUSTER_NAME`
 - A GitHub Actions secret named `WORKLOAD_DATABASE_URL`
+
+The deploy workflow currently uses the fixed production names already provisioned in DigitalOcean:
+
+- Registry: `dev2prod`
+- Cluster: `dev2prod`
+- Database cluster: `dev2prod`
 
 ## Runtime Shape
 

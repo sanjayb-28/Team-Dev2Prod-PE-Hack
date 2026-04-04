@@ -58,17 +58,7 @@ jobs:
       - name: Resolve database cluster id
         run: |
           DATABASE_ID="$(
-            doctl databases list --output json | python3 -c '
-              import json
-              import os
-              import sys
-
-              target = os.environ["DATABASE_CLUSTER_NAME"]
-              for cluster in json.load(sys.stdin):
-                  if cluster.get("name") == target and cluster.get("engine") == "pg":
-                      print(cluster["id"])
-                      break
-            '
+            doctl databases list --output json | python3 -c "import json, os, sys; target=os.environ['DATABASE_CLUSTER_NAME']; print(next((cluster['id'] for cluster in json.load(sys.stdin) if cluster.get('name') == target and cluster.get('engine') == 'pg'), ''))"
           )"
           if [ -z "$DATABASE_ID" ]; then
             echo "Could not find the PostgreSQL database cluster."
