@@ -215,7 +215,8 @@ button:disabled {
 
 .landing-page,
 .surface-page,
-.workspace-page {
+.workspace-page,
+.performance-page {
   animation: rise 420ms ease both;
 }
 
@@ -562,6 +563,119 @@ button:disabled {
 .surface-page {
   display: grid;
   gap: 1.2rem;
+}
+
+.performance-page {
+  display: grid;
+  gap: 1.2rem;
+}
+
+.performance-hero,
+.performance-grid,
+.performance-layout {
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+}
+
+.performance-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(18rem, 0.75fr);
+  gap: 1.6rem;
+  padding: 1.5rem;
+  background: #f7f4ee;
+}
+
+.performance-hero__summary {
+  display: grid;
+  align-content: start;
+}
+
+.performance-stats {
+  margin: 0;
+  display: grid;
+  gap: 0.9rem;
+}
+
+.performance-stats div,
+.performance-stack div,
+.performance-proof div {
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--line);
+}
+
+.performance-stats dt {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.74rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.performance-stats dd {
+  margin: 0.28rem 0 0;
+  font-size: 1.05rem;
+}
+
+.performance-grid,
+.performance-layout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  background: var(--surface);
+}
+
+.performance-panel {
+  padding: 1.4rem 1.5rem 1.5rem;
+  display: grid;
+  gap: 0.7rem;
+  border-right: 1px solid var(--line);
+}
+
+.performance-panel:last-child {
+  border-right: 0;
+}
+
+.performance-panel h2 {
+  margin: 0;
+  font-size: clamp(1.7rem, 3vw, 2.4rem);
+  line-height: 0.98;
+  letter-spacing: -0.04em;
+}
+
+.performance-panel p,
+.performance-note,
+.performance-stack span,
+.performance-proof p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.performance-code {
+  margin: 0.2rem 0 0;
+  padding: 0.95rem 1rem;
+  border: 1px solid var(--line);
+  background: #fcfaf5;
+  overflow-x: auto;
+}
+
+.performance-code code {
+  font-family:
+    'SFMono-Regular',
+    'Menlo',
+    'Monaco',
+    monospace;
+  font-size: 0.88rem;
+}
+
+.performance-stack,
+.performance-proof {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.performance-stack strong,
+.performance-proof strong {
+  display: block;
+  margin-bottom: 0.28rem;
 }
 
 .surface-page__hero {
@@ -1075,11 +1189,17 @@ button:disabled {
   .detail-columns,
   .surface-page__grid,
   .workspace-overview,
-  .workspace-offline__grid {
+  .workspace-offline__grid,
+  .performance-grid,
+  .performance-layout {
     grid-template-columns: 1fr;
   }
 
   .landing-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .performance-hero {
     grid-template-columns: 1fr;
   }
 
@@ -1111,6 +1231,7 @@ button:disabled {
   .landing-detail,
   .surface-page__hero,
   .surface-page__grid,
+  .performance-hero,
   .workspace-masthead,
   .workspace-offline {
     padding: 1.2rem;

@@ -1,6 +1,7 @@
 import { startTransition, useEffect, useState } from 'react'
 
 import HomePage from './pages/HomePage'
+import PerformancePage from './pages/PerformancePage'
 import SurfacePage from './pages/SurfacePage'
 import WorkspacePage from './pages/WorkspacePage'
 
@@ -58,28 +59,7 @@ function renderPage(page: PageName, onNavigate: (nextPage: PageName) => void) {
   }
 
   if (page === 'performance') {
-    return (
-      <SurfacePage
-        eyebrow="Performance"
-        title="Baseline load and scale-out in one lab."
-        intro="This surface now tracks two concrete lanes: a single-instance baseline and a two-instance scale path behind Nginx."
-        summary="The local scale lab is set up to prove a 50-user baseline first, then a 200-user load-balanced run with the same workload."
-        sections={[
-          {
-            title: 'Baseline lane',
-            body: 'Run the Bronze path against one workload instance and capture p95 latency plus error rate from the 50-user k6 output.',
-          },
-          {
-            title: 'Scale lane',
-            body: 'Run the Silver path through Nginx across two workload instances and confirm the 200-user run stays under the response-time target.',
-          },
-          {
-            title: 'Lab shape',
-            body: 'The scale lab now includes Postgres, one baseline workload service, a two-instance workload fleet, one Nginx gateway, and k6 scenarios for both runs.',
-          },
-        ]}
-      />
-    )
+    return <PerformancePage />
   }
 
   if (page === 'observability') {
