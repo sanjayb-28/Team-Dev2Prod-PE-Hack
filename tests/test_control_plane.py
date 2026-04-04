@@ -336,6 +336,83 @@ def test_cancel_experiment_returns_payload(monkeypatch):
     }
 
 
+def test_scale_lab_returns_payload(monkeypatch):
+    app = create_app()
+
+    monkeypatch.setattr(
+        control_plane,
+        "build_scale_lab_payload",
+        lambda config: {
+            "enabled": True,
+            "mode": "cluster",
+            "lanes": [
+                {
+                    "id": "bronze-baseline",
+                    "label": "Bronze baseline",
+                    "concurrency": 50,
+                    "durationSeconds": 20,
+                    "replicas": 1,
+                }
+            ],
+            "workloadScale": {"desiredReplicas": 1, "readyReplicas": 1, "availableReplicas": 1},
+            "runs": [],
+        },
+    )
+
+    with app.test_client() as client:
+        response = client.get("/api/scale-lab")
+
+    assert response.status_code == 200
+    assert response.get_json()["data"]["enabled"] is True
+    assert response.get_json()["data"]["lanes"][0]["id"] == "bronze-baseline"
+
+
+def test_scale_lab_run_returns_created_payload(monkeypatch):
+    app = create_app()
+
+    def fake_create_scale_run(config, payload):
+        assert payload == {"lane": "silver-scale-out"}
+        return {
+            "name": "scale-silver-a1b2c3",
+            "lane": "silver-scale-out",
+            "label": "Silver scale-out",
+            "status": "running",
+            "concurrency": 200,
+            "durationSeconds": 30,
+            "replicas": 2,
+        }
+
+    monkeypatch.setattr(control_plane, "create_scale_run", fake_create_scale_run)
+
+    with app.test_client() as client:
+        response = client.post("/api/scale-lab/runs", json={"lane": "silver-scale-out"})
+
+    assert response.status_code == 201
+    assert response.get_json()["data"]["name"] == "scale-silver-a1b2c3"
+
+
+def test_scale_lab_run_returns_validation_error(monkeypatch):
+    app = create_app()
+
+    def fake_create_scale_run(config, payload):
+        raise control_plane.ExperimentRequestError(
+            "Scale lab runs are only available in the live cluster.",
+            code="scale_lab_unavailable",
+            status_code=409,
+        )
+
+    monkeypatch.setattr(control_plane, "create_scale_run", fake_create_scale_run)
+
+    with app.test_client() as client:
+        response = client.post("/api/scale-lab/runs", json={"lane": "bronze-baseline"})
+
+    assert response.status_code == 409
+    assert response.get_json()["error"] == {
+        "code": "scale_lab_unavailable",
+        "message": "Scale lab runs are only available in the live cluster.",
+    }
+
+
 def test_stream_returns_cluster_snapshot(monkeypatch):
     app = create_app()
 

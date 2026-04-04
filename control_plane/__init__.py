@@ -19,6 +19,7 @@ from control_plane.experiments import (
     create_experiment,
     list_experiments,
 )
+from control_plane.scale_lab import build_scale_lab_payload, create_scale_run
 
 
 def read_flag(name: str, default: bool = False) -> bool:
@@ -157,6 +158,19 @@ def create_app() -> Flask:
             return jsonify(error={"code": error.code, "message": error.message}), error.status_code
 
         return jsonify(data=payload)
+
+    @app.get("/api/scale-lab")
+    def scale_lab():
+        return jsonify(data=build_scale_lab_payload(app.config))
+
+    @app.post("/api/scale-lab/runs")
+    def create_scale_run_route():
+        try:
+            payload = create_scale_run(app.config, request.get_json(silent=True))
+        except ExperimentRequestError as error:
+            return jsonify(error={"code": error.code, "message": error.message}), error.status_code
+
+        return jsonify(data=payload), 201
 
     @app.get("/api/stream")
     def stream():

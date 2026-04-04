@@ -1,6 +1,7 @@
 import { startTransition, useEffect, useState } from 'react'
 
 import HomePage from './pages/HomePage'
+import PerformancePage from './pages/PerformancePage'
 import SurfacePage from './pages/SurfacePage'
 import WorkspacePage from './pages/WorkspacePage'
 
@@ -58,28 +59,7 @@ function renderPage(page: PageName, onNavigate: (nextPage: PageName) => void) {
   }
 
   if (page === 'performance') {
-    return (
-      <SurfacePage
-        eyebrow="Performance"
-        title="Load, scale, and cache in one readable flow."
-        intro="This surface will hold the benchmark story: baseline load, scale-out behavior, caching impact, and the notes that explain where the service bends first."
-        summary="The goal is to present recent results clearly before exposing raw benchmark detail."
-        sections={[
-          {
-            title: 'Scenario summary',
-            body: 'Keep baseline, scale-out, and cache scenarios readable from one top summary instead of scattering the load story across logs and screenshots.',
-          },
-          {
-            title: 'Topology view',
-            body: 'Show the scale lab setup with the workload fleet, Nginx, Postgres, Redis, and the benchmark runner in a simple visual layout.',
-          },
-          {
-            title: 'Bottleneck notes',
-            body: 'Capture what limited throughput, how the team found it, and what changed after the optimization pass.',
-          },
-        ]}
-      />
-    )
+    return <PerformancePage />
   }
 
   if (page === 'observability') {

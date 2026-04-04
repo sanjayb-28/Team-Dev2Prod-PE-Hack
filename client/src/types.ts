@@ -87,3 +87,45 @@ export interface ExperimentRequestPayload {
   durationSeconds: number
   parameters: Record<string, unknown>
 }
+
+export interface ScaleLabLane {
+  id: string
+  label: string
+  description: string
+  concurrency: number
+  durationSeconds: number
+  replicas: number
+}
+
+export interface ScaleLabSummary {
+  p95LatencyMs: number
+  avgLatencyMs: number
+  errorRate: number
+  requestCount: number
+}
+
+export interface ScaleLabRun {
+  name: string
+  lane: string
+  label: string
+  status: string
+  concurrency: number
+  durationSeconds: number
+  replicas: number
+  createdAt?: string
+  summary?: ScaleLabSummary
+}
+
+export interface WorkloadScaleStatus {
+  desiredReplicas: number
+  readyReplicas: number
+  availableReplicas: number
+}
+
+export interface ScaleLabSnapshot {
+  enabled: boolean
+  mode: string
+  lanes: ScaleLabLane[]
+  workloadScale: WorkloadScaleStatus | null
+  runs: ScaleLabRun[]
+}

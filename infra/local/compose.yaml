@@ -28,6 +28,51 @@ services:
     ports:
       - "15000:5000"
 
+  workload-api-a:
+    profiles: ["scale"]
+    build:
+      context: ../..
+    environment:
+      APP_HOST: 0.0.0.0
+      APP_PORT: 5000
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/dev2prod
+    depends_on:
+      db:
+        condition: service_healthy
+
+  workload-api-b:
+    profiles: ["scale"]
+    build:
+      context: ../..
+    environment:
+      APP_HOST: 0.0.0.0
+      APP_PORT: 5000
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/dev2prod
+    depends_on:
+      db:
+        condition: service_healthy
+
+  scale-gateway:
+    profiles: ["scale"]
+    image: nginx:1.29-alpine
+    depends_on:
+      workload-api-a:
+        condition: service_started
+      workload-api-b:
+        condition: service_started
+    ports:
+      - "16000:8080"
+    volumes:
+      - ./nginx.scale.conf:/etc/nginx/nginx.conf:ro
+
+  k6:
+    profiles: ["scale"]
+    image: grafana/k6:0.51.0
+    working_dir: /scripts
+    entrypoint: ["k6"]
+    volumes:
+      - ./load-tests:/scripts:ro
+
   control-plane:
     build:
       context: ../..
