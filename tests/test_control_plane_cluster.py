@@ -1,9 +1,11 @@
 from datetime import datetime
 
 from control_plane.cluster import (
+    clear_archived_experiments,
     get_experiment_logs,
     get_resource_events,
     list_cluster_experiments,
+    list_archived_experiments,
     normalize_experiment,
     should_prune_experiment,
     settle_experiment_status,
@@ -213,6 +215,7 @@ def test_should_not_prune_recent_recovered_experiment():
 
 
 def test_list_cluster_experiments_prunes_completed_runs(monkeypatch):
+    clear_archived_experiments()
     deleted_paths: list[str] = []
 
     def fake_load_kubernetes_json(path: str):
@@ -262,10 +265,52 @@ def test_list_cluster_experiments_prunes_completed_runs(monkeypatch):
 
     experiments = list_cluster_experiments("dev2prod", {"workload-api-live-pod"})
 
-    assert experiments == []
+    assert experiments == [
+        {
+            "kind": "experiment",
+            "type": "network-latency",
+            "name": "network-latency-a84aa3",
+            "status": "recovered",
+            "targetKind": "service",
+            "target": "workload-api",
+            "updatedAt": "2026-04-04T15:31:27Z",
+            "durationSeconds": 60,
+            "latencyMs": 120,
+        }
+    ]
     assert deleted_paths == [
         "/apis/chaos-mesh.org/v1alpha1/namespaces/dev2prod/networkchaos/network-latency-a84aa3"
     ]
+    clear_archived_experiments()
+
+
+def test_list_archived_experiments_drops_expired_entries():
+    clear_archived_experiments()
+
+    archive_experiment = {
+        "kind": "experiment",
+        "type": "pod-kill",
+        "name": "pod-kill-old",
+        "status": "recovered",
+        "targetKind": "pod",
+        "target": "workload-api-old",
+        "updatedAt": "2026-04-04T15:31:27Z",
+    }
+
+    from control_plane.cluster import archive_experiment as store_experiment
+
+    store_experiment(
+        archive_experiment,
+        now=datetime.fromisoformat("2026-04-04T16:00:00+00:00"),
+    )
+
+    assert list_archived_experiments(
+        now=datetime.fromisoformat("2026-04-04T16:05:00+00:00")
+    ) == [archive_experiment]
+    assert list_archived_experiments(
+        now=datetime.fromisoformat("2026-04-04T16:11:00+00:00")
+    ) == []
+    clear_archived_experiments()
 
 
 def test_get_experiment_logs_uses_latest_workload_pod(monkeypatch):
