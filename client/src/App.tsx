@@ -171,7 +171,7 @@ export default function App() {
             navigate('home')
           }}
         >
-          <span className="site-brand__mark" />
+          <img src="/favicon.png" alt="" className="site-brand__mark" />
           <span>
             <strong>Dev2Prod</strong>
             <small>Operations cockpit</small>

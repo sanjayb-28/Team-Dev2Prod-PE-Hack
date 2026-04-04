@@ -93,13 +93,14 @@ button:disabled {
 }
 
 .site-brand__mark {
-  width: 0.95rem;
-  height: 0.95rem;
-  border-radius: 999px;
-  background: var(--accent);
-  box-shadow:
-    0.28rem 0.28rem 0 0 var(--warm),
-    inset 0 0 0 0.18rem rgba(255, 255, 255, 0.6);
+  width: 2rem;
+  height: 2rem;
+  object-fit: contain;
+  border-radius: 0.45rem;
+  background: #fffdf8;
+  border: 1px solid rgba(21, 115, 107, 0.14);
+  padding: 0.18rem;
+  box-shadow: 0.28rem 0.28rem 0 0 rgba(216, 106, 61, 0.16);
 }
 
 .site-brand strong,
@@ -357,7 +358,7 @@ button:disabled {
   height: auto;
   object-fit: contain;
   filter: saturate(1.02) contrast(1.02);
-  transform: scale(1.04);
+  transform: scale(1.02);
 }
 
 .landing-strip {
