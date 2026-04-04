@@ -151,7 +151,7 @@ def resolve_link(slug):
     link.save()
     record_event(
         link,
-        "resolved",
+        "click",
         {
             "short_code": link.slug,
             "original_url": link.target_url,
