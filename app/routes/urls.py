@@ -225,6 +225,7 @@ def create_url():
         return error_response("validation_failed", title_error, 422)
 
     short_code = payload.get("short_code")
+    short_code_was_provided = short_code is not None
     if short_code is not None:
         short_code_error = validate_short_code(short_code)
         if short_code_error:
@@ -233,34 +234,29 @@ def create_url():
     else:
         short_code = generate_short_code()
 
-    try:
-        link = Link.create(
-            slug=short_code,
-            user_id=payload["user_id"],
-            target_url=payload["original_url"].strip(),
-            title=payload.get("title").strip() if payload.get("title", "").strip() else None,
-        )
-    except IntegrityError:
-        conflict_response = resolve_create_url_conflict(short_code)
-        if conflict_response is not None:
-            return conflict_response
-
-        sync_primary_key_sequence(Link)
-
+    title = payload.get("title").strip() if payload.get("title", "").strip() else None
+    link = None
+    for _ in range(6):
         try:
             link = Link.create(
                 slug=short_code,
                 user_id=payload["user_id"],
                 target_url=payload["original_url"].strip(),
-                title=payload.get("title").strip()
-                if payload.get("title", "").strip()
-                else None,
+                title=title,
             )
+            break
         except IntegrityError:
             conflict_response = resolve_create_url_conflict(short_code)
             if conflict_response is not None:
-                return conflict_response
-            raise
+                if short_code_was_provided:
+                    return conflict_response
+                short_code = generate_short_code()
+                continue
+
+            sync_primary_key_sequence(Link)
+
+    if link is None:
+        raise RuntimeError("Could not create a unique short URL.")
 
     record_event(
         link,

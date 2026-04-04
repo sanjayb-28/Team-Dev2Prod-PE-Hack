@@ -2,6 +2,7 @@ import json
 from datetime import UTC, datetime
 
 from app import cache as cache_module
+from app.routes import urls as urls_module
 from app.database import db
 from app.models import Event, Link, User
 
@@ -349,6 +350,27 @@ def test_create_url_rejects_overlong_short_code(client):
 
     assert response.status_code == 422
     assert response.get_json()["error"]["message"] == "short_code must be 32 characters or fewer."
+
+
+def test_create_url_regenerates_when_generated_short_code_is_taken(client, monkeypatch):
+    create_user(1)
+    create_link(1, slug="taken1")
+    generated_codes = iter(["taken1", "fresh2"])
+    monkeypatch.setattr(urls_module, "generate_short_code", lambda length=6: next(generated_codes))
+
+    response = client.post(
+        "/urls",
+        json={
+            "user_id": 1,
+            "original_url": "https://example.com/fresh",
+            "title": "Fresh URL",
+        },
+    )
+
+    assert response.status_code == 201
+    payload = response.get_json()
+    assert payload["short_code"] == "fresh2"
+    assert Link.select().where(Link.slug == "fresh2").exists()
 
 
 def test_delete_url(client):

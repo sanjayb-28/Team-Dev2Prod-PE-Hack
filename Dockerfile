@@ -9,6 +9,7 @@ RUN uv sync --frozen --no-dev
 
 COPY app app
 COPY control_plane control_plane
+COPY data data
 COPY run.py run_control_plane.py ./
 COPY scripts scripts
 

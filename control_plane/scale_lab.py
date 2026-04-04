@@ -20,24 +20,30 @@ from control_plane.experiments import ExperimentRequestError
 SCALE_LANES = {
     "bronze-baseline": {
         "label": "Bronze baseline",
-        "description": "Run a 50-user check against one workload instance.",
+        "description": "Run a 50-user check across a small seeded URL sample on one workload instance.",
         "concurrency": 50,
         "durationSeconds": 20,
         "replicas": 1,
+        "urlSampleSize": 12,
+        "userSampleSize": 6,
     },
     "silver-scale-out": {
         "label": "Silver scale-out",
-        "description": "Scale the workload to two replicas and run a 200-user check.",
+        "description": "Scale to two replicas and fan requests across a broader seeded URL and user mix.",
         "concurrency": 200,
         "durationSeconds": 30,
         "replicas": 2,
+        "urlSampleSize": 60,
+        "userSampleSize": 24,
     },
     "gold-cache-burst": {
         "label": "Gold cache burst",
-        "description": "Scale to three replicas and push a 500-user cached read burst.",
+        "description": "Scale to three replicas and burst across many seeded URLs and user filters while the cache stays warm.",
         "concurrency": 500,
         "durationSeconds": 30,
         "replicas": 3,
+        "urlSampleSize": 180,
+        "userSampleSize": 60,
     },
 }
 JOB_IMAGE = "grafana/k6:0.51.0"
@@ -45,6 +51,8 @@ JOB_LABEL_KEY = "dev2prod.io/scale-lane"
 JOB_MANAGER_LABEL = "dev2prod.io/managed-by"
 JOB_MANAGER_VALUE = "dev2prod-control-plane"
 SUMMARY_MARKER = "__DEV2PROD_SUMMARY__"
+SEEDED_URL_MAX_ID = 2000
+SEEDED_USER_MAX_ID = 400
 
 
 def scale_lab_ready() -> bool:
@@ -126,8 +134,22 @@ def wait_for_replicas(config: dict, replicas: int, timeout_seconds: int = 120):
     )
 
 
+def build_sample_pool(max_id: int, sample_size: int) -> list[int]:
+    if sample_size >= max_id:
+        return list(range(1, max_id + 1))
+
+    step = max_id / sample_size
+    values = {
+        max(1, min(max_id, round((index * step) + 1)))
+        for index in range(sample_size)
+    }
+    return sorted(values)
+
+
 def render_k6_script(config: dict, lane: str) -> str:
     lane_config = SCALE_LANES[lane]
+    url_ids = build_sample_pool(SEEDED_URL_MAX_ID, lane_config["urlSampleSize"])
+    user_ids = build_sample_pool(SEEDED_USER_MAX_ID, lane_config["userSampleSize"])
     threshold_lines = ""
     if lane == "silver-scale-out":
         threshold_lines = """
@@ -141,13 +163,33 @@ def render_k6_script(config: dict, lane: str) -> str:
     http_req_failed: ['rate<0.05'],
   },"""
 
-    paths = "['/health', '/urls', '/urls?is_active=true']"
+    path_builders = """[
+  () => '/health',
+  () => '/urls',
+  () => '/urls?is_active=true',
+  () => `/urls/${urlIds[Math.floor(Math.random() * urlIds.length)]}`,
+  () => `/urls?user_id=${userIds[Math.floor(Math.random() * userIds.length)]}`,
+]"""
     setup_block = ""
+    if lane in {"silver-scale-out", "gold-cache-burst"}:
+        path_builders = """[
+  () => '/urls',
+  () => '/urls?is_active=true',
+  () => `/urls/${urlIds[Math.floor(Math.random() * urlIds.length)]}`,
+  () => `/urls?user_id=${userIds[Math.floor(Math.random() * userIds.length)]}`,
+  () => `/urls?user_id=${userIds[Math.floor(Math.random() * userIds.length)]}&is_active=true`,
+]"""
+
     if lane == "gold-cache-burst":
-        paths = "['/urls', '/urls?is_active=true', '/urls/1']"
         setup_block = """
 export function setup() {
-  const warmPaths = ['/urls', '/urls?is_active=true', '/urls/1']
+  const warmPaths = [
+    '/urls',
+    '/urls?is_active=true',
+    `/urls/${urlIds[0]}`,
+    `/urls?user_id=${userIds[0]}`,
+    `/urls?user_id=${userIds[1]}&is_active=true`,
+  ]
   for (const path of warmPaths) {
     http.get(`${baseUrl}${path}`)
   }
@@ -163,12 +205,14 @@ export const options = {{
 }}
 
 const baseUrl = 'http://{config["WORKLOAD_SERVICE_NAME"]}:5000'
-const paths = {paths}
+const urlIds = {url_ids}
+const userIds = {user_ids}
+const requestBuilders = {path_builders}
 
 {setup_block}
 
 export default function () {{
-  const path = paths[Math.floor(Math.random() * paths.length)]
+  const path = requestBuilders[Math.floor(Math.random() * requestBuilders.length)]()
   const response = http.get(`${{baseUrl}}${{path}}`)
 
   check(response, {{

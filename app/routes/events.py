@@ -145,14 +145,15 @@ def create_event():
             422,
         )
 
-    details = payload.get("details")
-    if not isinstance(details, dict):
-        return error_response(
-            "validation_failed",
-            "details must be a JSON object.",
-            422,
-        )
-    if details is not None:
+    details = None
+    if "details" in payload:
+        details = payload.get("details")
+        if not isinstance(details, dict):
+            return error_response(
+                "validation_failed",
+                "details must be a JSON object.",
+                422,
+            )
         try:
             details = json.dumps(details, sort_keys=True)
         except TypeError:
