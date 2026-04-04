@@ -8,6 +8,8 @@ import type {
   ResourceLogRecord,
   ResourceRecord,
   ResourceSnapshot,
+  ScaleLabRun,
+  ScaleLabSnapshot,
 } from './types'
 
 interface ApiEnvelope<T> {
@@ -81,6 +83,14 @@ export function createExperiment(payload: ExperimentRequestPayload) {
 
 export function cancelExperiment(name: string) {
   return sendJson<ApiEnvelope<ResourceRecord>>(`/api/experiments/${name}/cancel`, 'POST')
+}
+
+export function fetchScaleLab() {
+  return fetchJson<ApiEnvelope<ScaleLabSnapshot>>('/api/scale-lab')
+}
+
+export function createScaleRun(lane: string) {
+  return sendJson<ApiEnvelope<ScaleLabRun>>('/api/scale-lab/runs', 'POST', { lane })
 }
 
 export function openClusterStream(

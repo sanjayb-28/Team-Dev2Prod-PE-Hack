@@ -1,110 +1,310 @@
+import { startTransition, useEffect, useState } from 'react'
+
+import { createScaleRun, fetchScaleLab } from '../control-plane'
+import type { ScaleLabLane, ScaleLabRun, ScaleLabSnapshot } from '../types'
+
+type RequestState = 'loading' | 'ready' | 'error'
+type ActionState = 'idle' | 'running' | 'success' | 'error'
+
+function formatUpdatedAt(value: string | undefined) {
+  if (!value) {
+    return 'Waiting for the first run'
+  }
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return 'Waiting for the first run'
+  }
+
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(date)
+}
+
+function formatPercent(value: number | undefined) {
+  if (typeof value !== 'number') {
+    return 'Waiting'
+  }
+  return `${(value * 100).toFixed(2)}%`
+}
+
+function toneForRun(status: string) {
+  if (status === 'completed') {
+    return 'good'
+  }
+  if (status === 'running' || status === 'pending') {
+    return 'warn'
+  }
+  if (status === 'failed') {
+    return 'bad'
+  }
+  return 'quiet'
+}
+
+function currentLaneRun(runs: ScaleLabRun[], lane: ScaleLabLane) {
+  return runs.find((run) => run.lane === lane.id) ?? null
+}
+
+function latestRunOutcome(run: ScaleLabRun | null) {
+  if (!run?.summary || run.status !== 'completed') {
+    return null
+  }
+
+  if (run.lane === 'silver-scale-out') {
+    const targetMet = run.summary.p95LatencyMs < 3000 && run.summary.errorRate < 0.05
+    return {
+      tone: targetMet ? 'good' : 'bad',
+      label: targetMet ? 'Target met' : 'Needs attention',
+      detail: targetMet
+        ? 'The scale-out lane stayed inside the 3s p95 and 5% error targets.'
+        : 'The scale-out lane missed one of its latency or error targets.',
+    }
+  }
+
+  return {
+    tone: 'good',
+    label: 'Baseline captured',
+    detail: 'The baseline lane finished and recorded a fresh latency sample.',
+  }
+}
+
 export default function PerformancePage() {
+  const [snapshot, setSnapshot] = useState<ScaleLabSnapshot | null>(null)
+  const [state, setState] = useState<RequestState>('loading')
+  const [actionState, setActionState] = useState<ActionState>('idle')
+  const [actionMessage, setActionMessage] = useState<string | null>(null)
+  const [activeLane, setActiveLane] = useState<string | null>(null)
+
+  async function refresh() {
+    try {
+      const response = await fetchScaleLab()
+      startTransition(() => {
+        setSnapshot(response.data)
+        setState('ready')
+      })
+    } catch {
+      startTransition(() => {
+        setState('error')
+      })
+    }
+  }
+
+  useEffect(() => {
+    void refresh()
+  }, [])
+
+  useEffect(() => {
+    if (!snapshot?.runs.some((run) => run.status === 'running' || run.status === 'pending')) {
+      return
+    }
+
+    const interval = window.setInterval(() => {
+      void refresh()
+    }, 3000)
+
+    return () => {
+      window.clearInterval(interval)
+    }
+  }, [snapshot])
+
+  const latestRun = snapshot?.runs[0] ?? null
+  const liveRun = snapshot?.runs.find((run) => run.status === 'running' || run.status === 'pending')
+  const runInProgress = Boolean(liveRun)
+  const latestOutcome = latestRunOutcome(latestRun)
+
+  async function handleRun(lane: ScaleLabLane) {
+    setActionState('running')
+    setActiveLane(lane.id)
+    setActionMessage(`Starting ${lane.label.toLowerCase()}.`)
+
+    try {
+      const response = await createScaleRun(lane.id)
+      await refresh()
+      startTransition(() => {
+        setActionState('success')
+        setActionMessage(`${response.data.label} is running in the cluster.`)
+      })
+    } catch (error) {
+      startTransition(() => {
+        setActionState('error')
+        setActionMessage(
+          error instanceof Error ? error.message : 'The scale lab could not start that run.',
+        )
+      })
+    } finally {
+      startTransition(() => {
+        setActiveLane(null)
+      })
+    }
+  }
+
   return (
     <div className="performance-page">
       <section className="performance-hero">
         <div className="section-heading">
           <p className="eyebrow">Performance</p>
-          <h1>Scale the same workload through two clear test lanes.</h1>
+          <h1>Run baseline and scale-out checks from the cluster.</h1>
           <p>
-            The scale lab now has a baseline path for one service instance and a second
-            path that pushes traffic through Nginx across two workload instances.
+            The scale lab can switch the workload between one and two replicas, launch a
+            benchmark run, and report the result back into this surface.
           </p>
         </div>
 
         <div className="performance-hero__summary">
           <dl className="performance-stats">
             <div>
-              <dt>Bronze</dt>
-              <dd>50 concurrent users</dd>
+              <dt>Lab mode</dt>
+              <dd>{snapshot?.enabled ? 'Live cluster' : state === 'loading' ? 'Loading' : 'Unavailable'}</dd>
             </div>
             <div>
-              <dt>Silver</dt>
-              <dd>200 concurrent users</dd>
+              <dt>Workload scale</dt>
+              <dd>
+                {snapshot?.workloadScale
+                  ? `${snapshot.workloadScale.readyReplicas} / ${snapshot.workloadScale.desiredReplicas} ready`
+                  : 'Waiting for cluster data'}
+              </dd>
             </div>
             <div>
-              <dt>Target</dt>
-              <dd>Under 3s with scale-out</dd>
+              <dt>Latest run</dt>
+              <dd>{latestRun ? latestRun.label : 'No benchmark run yet'}</dd>
             </div>
           </dl>
         </div>
       </section>
 
-      <section className="performance-grid">
-        <article className="performance-panel">
-          <p className="eyebrow">Baseline lane</p>
-          <h2>Single instance baseline</h2>
-          <p>
-            This run hits one workload instance directly so the first set of latency and
-            error numbers has no load balancer in the middle.
-          </p>
-          <pre className="performance-code">
-            <code>infra/local/run-bronze-load.sh</code>
-          </pre>
-          <p className="performance-note">
-            k6 target: one workload instance on the direct path
-          </p>
-        </article>
+      {state === 'error' ? (
+        <section className="performance-banner performance-banner--error">
+          The performance surface could not reach the scale lab right now.
+        </section>
+      ) : null}
 
-        <article className="performance-panel">
-          <p className="eyebrow">Scale lane</p>
-          <h2>Two-instance scale-out</h2>
-          <p>
-            This run routes traffic through Nginx to two workload instances and checks
-            both response time and failure rate under the larger load.
-          </p>
-          <pre className="performance-code">
-            <code>infra/local/run-silver-load.sh</code>
-          </pre>
-          <p className="performance-note">
-            k6 target: Nginx on port 16000 with upstream proof in the response headers
-          </p>
-        </article>
+      {!snapshot?.enabled && state === 'ready' ? (
+        <section className="performance-banner">
+          Scale runs are only available from the live cluster. The local page can still
+          show the layout, but the buttons stay disabled until the control plane is
+          running in Kubernetes.
+        </section>
+      ) : null}
+
+      <section className="performance-grid">
+        {(snapshot?.lanes ?? []).map((lane) => {
+          const run = currentLaneRun(snapshot?.runs ?? [], lane)
+          return (
+            <article key={lane.id} className="performance-panel">
+              <p className="eyebrow">{lane.label}</p>
+              <h2>{lane.concurrency} concurrent users</h2>
+              <p>{lane.description}</p>
+              <dl className="performance-lane-stats">
+                <div>
+                  <dt>Replicas</dt>
+                  <dd>{lane.replicas}</dd>
+                </div>
+                <div>
+                  <dt>Duration</dt>
+                  <dd>{lane.durationSeconds}s</dd>
+                </div>
+                <div>
+                  <dt>Latest status</dt>
+                  <dd className={`resource-list__status resource-list__status--${toneForRun(run?.status ?? 'quiet')}`}>
+                    {run ? run.status : 'Waiting'}
+                  </dd>
+                </div>
+              </dl>
+              <button
+                type="button"
+                className="button button--primary"
+                disabled={!snapshot?.enabled || actionState === 'running' || runInProgress}
+                onClick={() => {
+                  void handleRun(lane)
+                }}
+              >
+                {activeLane === lane.id && actionState === 'running'
+                  ? 'Starting run'
+                  : runInProgress
+                    ? 'Run in progress'
+                  : `Run ${lane.label}`}
+              </button>
+            </article>
+          )
+        })}
       </section>
+
+      {actionMessage ? (
+        <section
+          className={
+            actionState === 'error'
+              ? 'performance-banner performance-banner--error'
+              : 'performance-banner'
+          }
+        >
+          {actionMessage}
+        </section>
+      ) : null}
+
+      {runInProgress ? (
+        <section className="performance-banner">
+          {liveRun?.label ?? 'A scale run'} is active now. This page will keep polling until
+          the benchmark pod finishes and the summary lands here.
+        </section>
+      ) : null}
 
       <section className="performance-layout">
         <article className="performance-panel">
-          <p className="eyebrow">Lab shape</p>
-          <h2>What runs in the scale lab</h2>
-          <div className="performance-stack">
-            <div>
-              <strong>Postgres</strong>
-              <span>Shared database for every lane</span>
+          <p className="eyebrow">Latest result</p>
+          <h2>{latestRun ? latestRun.label : 'Waiting for the first cluster run'}</h2>
+          {latestOutcome ? (
+            <div className={`performance-outcome performance-outcome--${latestOutcome.tone}`}>
+              <strong>{latestOutcome.label}</strong>
+              <p>{latestOutcome.detail}</p>
             </div>
-            <div>
-              <strong>Workload API</strong>
-              <span>Direct baseline target on port 15000</span>
-            </div>
-            <div>
-              <strong>Workload API A + B</strong>
-              <span>Two-instance fleet for the scale path</span>
-            </div>
-            <div>
-              <strong>Nginx gateway</strong>
-              <span>Load-balanced path on port 16000</span>
-            </div>
-            <div>
-              <strong>k6 runner</strong>
-              <span>Scenario runner for both quest tiers</span>
-            </div>
-          </div>
+          ) : null}
+          {latestRun?.summary ? (
+            <dl className="performance-result-grid">
+              <div>
+                <dt>P95 latency</dt>
+                <dd>{latestRun.summary.p95LatencyMs} ms</dd>
+              </div>
+              <div>
+                <dt>Average latency</dt>
+                <dd>{latestRun.summary.avgLatencyMs} ms</dd>
+              </div>
+              <div>
+                <dt>Error rate</dt>
+                <dd>{formatPercent(latestRun.summary.errorRate)}</dd>
+              </div>
+              <div>
+                <dt>Requests</dt>
+                <dd>{latestRun.summary.requestCount}</dd>
+              </div>
+            </dl>
+          ) : (
+            <p className="performance-note">
+              Completed runs show latency and error-rate numbers here once the benchmark
+              pod finishes and the control plane reads the summary.
+            </p>
+          )}
         </article>
 
         <article className="performance-panel">
-          <p className="eyebrow">Proof points</p>
-          <h2>What to capture after each run</h2>
+          <p className="eyebrow">Run history</p>
+          <h2>Recent benchmark runs</h2>
           <div className="performance-proof">
-            <div>
-              <strong>Bronze</strong>
-              <p>k6 output with 50 users, p95 latency, and error rate.</p>
-            </div>
-            <div>
-              <strong>Silver</strong>
-              <p>docker ps with Nginx plus both workload instances, then k6 output at 200 users.</p>
-            </div>
-            <div>
-              <strong>Success line</strong>
-              <p>Keep the scaled path under 3 seconds with a clean error rate.</p>
-            </div>
+            {(snapshot?.runs ?? []).length === 0 ? (
+              <p>No runs yet.</p>
+            ) : (
+              snapshot?.runs.map((run) => (
+                <div key={run.name}>
+                  <strong>{run.label}</strong>
+                  <p>
+                    {run.concurrency} users • {run.replicas} replicas • {run.status} •{' '}
+                    {formatUpdatedAt(run.createdAt)}
+                  </p>
+                </div>
+              ))
+            )}
           </div>
         </article>
       </section>
