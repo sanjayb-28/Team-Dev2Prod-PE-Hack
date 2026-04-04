@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: workload-api
+  namespace: dev2prod
+  labels:
+    app.kubernetes.io/name: workload-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: workload-api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: workload-api
+    spec:
+      imagePullSecrets:
+        - name: do-registry
+      containers:
+        - name: workload-api
+          image: __BACKEND_IMAGE__
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: APP_DEBUG
+              value: "false"
+            - name: APP_HOST
+              value: 0.0.0.0
+            - name: APP_PORT
+              value: "5000"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: workload-env
+                  key: DATABASE_URL
+          ports:
+            - containerPort: 5000
+              name: http
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: workload-api
+  namespace: dev2prod
+spec:
+  selector:
+    app.kubernetes.io/name: workload-api
+  ports:
+    - port: 5000
+      targetPort: http
+      name: http

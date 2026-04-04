@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: platform-config
+  namespace: dev2prod
+data:
+  CLUSTER_NAME: dev2prod
+  CLUSTER_NAMESPACE: dev2prod
+  CLUSTER_PROVIDER: digitalocean
+  WORKLOAD_DEPLOYMENT_NAME: workload-api
+  WORKLOAD_SERVICE_NAME: workload-api
+  CONTROL_PLANE_DEPLOYMENT_NAME: control-plane
+  CHAOS_MESH_ENABLED: "false"

@@ -51,5 +51,15 @@ services:
     ports:
       - "18000:8000"
 
+  client:
+    build:
+      context: ../..
+      dockerfile: client/Dockerfile
+    depends_on:
+      control-plane:
+        condition: service_started
+    ports:
+      - "14000:80"
+
 volumes:
   postgres_data:

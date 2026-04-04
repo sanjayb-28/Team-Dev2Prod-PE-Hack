@@ -1,0 +1,107 @@
+name: Deploy to DigitalOcean
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows:
+      - Tests and Gate
+    types:
+      - completed
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_branch == 'main'
+      )
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      DO_NAMESPACE: dev2prod
+      BACKEND_REPOSITORY: dev2prod-backend
+      CLIENT_REPOSITORY: dev2prod-client
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.sha || github.event.workflow_run.head_sha }}
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Prepare image names
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            DEPLOY_SHA="${{ github.sha }}"
+          else
+            DEPLOY_SHA="${{ github.event.workflow_run.head_sha }}"
+          fi
+
+          SHORT_SHA="$(printf '%s' "$DEPLOY_SHA" | cut -c1-7)"
+          echo "DEPLOY_SHA=$DEPLOY_SHA" >> "$GITHUB_ENV"
+          echo "SHORT_SHA=$SHORT_SHA" >> "$GITHUB_ENV"
+          echo "BACKEND_IMAGE=registry.digitalocean.com/${{ secrets.DOCR_REGISTRY }}/${BACKEND_REPOSITORY}:$SHORT_SHA" >> "$GITHUB_ENV"
+          echo "CLIENT_IMAGE=registry.digitalocean.com/${{ secrets.DOCR_REGISTRY }}/${CLIENT_REPOSITORY}:$SHORT_SHA" >> "$GITHUB_ENV"
+
+      - name: Log in to DigitalOcean Container Registry
+        run: doctl registries login --expiry-seconds 1200
+
+      - name: Build backend image
+        run: docker build -t "$BACKEND_IMAGE" .
+
+      - name: Build client image
+        run: docker build -f client/Dockerfile -t "$CLIENT_IMAGE" .
+
+      - name: Push backend image
+        run: docker push "$BACKEND_IMAGE"
+
+      - name: Push client image
+        run: docker push "$CLIENT_IMAGE"
+
+      - name: Save cluster credentials
+        run: doctl kubernetes cluster kubeconfig save --expiry-seconds 600 "${{ secrets.DOKS_CLUSTER_NAME }}"
+
+      - name: Apply namespace
+        run: kubectl apply -f infra/digitalocean/k8s/namespace.yaml
+
+      - name: Apply registry pull secret
+        run: doctl registry kubernetes-manifest --namespace="$DO_NAMESPACE" --name=do-registry | kubectl apply -f -
+
+      - name: Apply workload secret
+        run: |
+          kubectl -n "$DO_NAMESPACE" create secret generic workload-env \
+            --from-literal=DATABASE_URL='${{ secrets.WORKLOAD_DATABASE_URL }}' \
+            --dry-run=client \
+            -o yaml | kubectl apply -f -
+
+      - name: Render manifests
+        run: |
+          mkdir -p "$RUNNER_TEMP/digitalocean-k8s"
+          for file in infra/digitalocean/k8s/*.yaml; do
+            sed \
+              -e "s|__BACKEND_IMAGE__|$BACKEND_IMAGE|g" \
+              -e "s|__CLIENT_IMAGE__|$CLIENT_IMAGE|g" \
+              "$file" > "$RUNNER_TEMP/digitalocean-k8s/$(basename "$file")"
+          done
+
+      - name: Apply platform manifests
+        run: kubectl apply -f "$RUNNER_TEMP/digitalocean-k8s"
+
+      - name: Verify rollout
+        run: |
+          kubectl -n "$DO_NAMESPACE" rollout status deployment/workload-api --timeout=180s
+          kubectl -n "$DO_NAMESPACE" rollout status deployment/control-plane --timeout=180s
+          kubectl -n "$DO_NAMESPACE" rollout status deployment/client --timeout=180s
+
+      - name: Show public service
+        run: kubectl -n "$DO_NAMESPACE" get service client -o wide

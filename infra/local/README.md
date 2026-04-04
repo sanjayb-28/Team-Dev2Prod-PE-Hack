@@ -1,6 +1,6 @@
 # Local Stack
 
-Bring up the backend stack:
+Bring up the local stack:
 
 ```bash
 docker compose -f infra/local/compose.yaml up --build
@@ -8,10 +8,11 @@ docker compose -f infra/local/compose.yaml up --build
 
 Endpoints:
 
+- cockpit: `http://127.0.0.1:14000`
 - workload API: `http://127.0.0.1:15000`
 - control plane: `http://127.0.0.1:18000`
 
-Run the client separately:
+If you want the client with live reload instead of the container:
 
 ```bash
 cd client
