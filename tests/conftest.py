@@ -11,12 +11,17 @@ from app import create_app
 
 
 @pytest.fixture()
-def client(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+def app(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     database_path = tmp_path / "test.db"
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{database_path}")
 
     app = create_app()
     app.config.update(TESTING=True)
 
+    yield app
+
+
+@pytest.fixture()
+def client(app):
     with app.test_client() as test_client:
         yield test_client
