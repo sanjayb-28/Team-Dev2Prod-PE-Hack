@@ -30,9 +30,10 @@ The deploy workflow currently uses the fixed production names already provisione
 - Public service: `client`
 - Internal services: `control-plane`, `workload-api`
 - Secret created by CD: `workload-env`
+- Chaos Mesh namespace: `chaos-mesh`
 
 ## Notes
 
-- `CHAOS_MESH_ENABLED` is `false` by default. Turn it on after Chaos Mesh is installed in the cluster.
+- CD installs or upgrades Chaos Mesh before the platform manifests roll out.
 - The control plane uses namespace-scoped RBAC and reads pod logs through `pods/log`.
 - After deploying the TLS-enabled client, set Cloudflare SSL mode to `Full (strict)`.

@@ -115,6 +115,24 @@ jobs:
       - name: Save cluster credentials
         run: doctl kubernetes cluster kubeconfig save --expiry-seconds 600 "$DOKS_CLUSTER_NAME"
 
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+
+      - name: Install Chaos Mesh
+        run: |
+          helm repo add chaos-mesh https://charts.chaos-mesh.org
+          helm repo update
+          helm upgrade --install chaos-mesh chaos-mesh/chaos-mesh \
+            --namespace chaos-mesh \
+            --create-namespace \
+            --version 2.6.7 \
+            --set chaosDaemon.runtime=containerd \
+            --set chaosDaemon.socketPath=/run/containerd/containerd.sock \
+            --set dashboard.create=false \
+            --set dnsServer.create=false \
+            --wait \
+            --timeout 5m
+
       - name: Apply namespace
         run: kubectl apply -f infra/digitalocean/k8s/namespace.yaml
 

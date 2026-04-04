@@ -10,4 +10,4 @@ data:
   WORKLOAD_DEPLOYMENT_NAME: workload-api
   WORKLOAD_SERVICE_NAME: workload-api
   CONTROL_PLANE_DEPLOYMENT_NAME: control-plane
-  CHAOS_MESH_ENABLED: "false"
+  CHAOS_MESH_ENABLED: "true"
