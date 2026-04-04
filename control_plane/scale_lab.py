@@ -32,6 +32,13 @@ SCALE_LANES = {
         "durationSeconds": 30,
         "replicas": 2,
     },
+    "gold-cache-burst": {
+        "label": "Gold cache burst",
+        "description": "Scale to three replicas and push a 500-user cached read burst.",
+        "concurrency": 500,
+        "durationSeconds": 30,
+        "replicas": 3,
+    },
 }
 JOB_IMAGE = "grafana/k6:0.51.0"
 JOB_LABEL_KEY = "dev2prod.io/scale-lane"
@@ -128,6 +135,24 @@ def render_k6_script(config: dict, lane: str) -> str:
     http_req_duration: ['p(95)<3000'],
     http_req_failed: ['rate<0.05'],
   },"""
+    elif lane == "gold-cache-burst":
+        threshold_lines = """
+  thresholds: {
+    http_req_failed: ['rate<0.05'],
+  },"""
+
+    paths = "['/health', '/urls', '/urls?is_active=true']"
+    setup_block = ""
+    if lane == "gold-cache-burst":
+        paths = "['/urls', '/urls?is_active=true', '/urls/1']"
+        setup_block = """
+export function setup() {
+  const warmPaths = ['/urls', '/urls?is_active=true', '/urls/1']
+  for (const path of warmPaths) {
+    http.get(`${baseUrl}${path}`)
+  }
+}
+"""
 
     return f"""import http from 'k6/http'
 import {{ check, sleep }} from 'k6'
@@ -138,7 +163,9 @@ export const options = {{
 }}
 
 const baseUrl = 'http://{config["WORKLOAD_SERVICE_NAME"]}:5000'
-const paths = ['/health', '/urls', '/urls?is_active=true']
+const paths = {paths}
+
+{setup_block}
 
 export default function () {{
   const path = paths[Math.floor(Math.random() * paths.length)]
@@ -151,6 +178,40 @@ export default function () {{
   sleep(1)
 }}
 """
+
+
+def probe_cache_headers(config: dict) -> dict | None:
+    base_url = config.get("WORKLOAD_API_URL", "").rstrip("/")
+    if not base_url:
+        return None
+
+    target_url = f"{base_url}/urls?is_active=true"
+
+    def fetch_header() -> str | None:
+        request = Request(target_url, headers={"Accept": "application/json"})
+        try:
+            with urlopen(request, timeout=3.0) as response:
+                return response.headers.get("X-Cache")
+        except (HTTPError, URLError, TimeoutError):
+            return None
+
+    first = fetch_header()
+    second = fetch_header()
+    if first is None and second is None:
+        return None
+
+    status = "warming"
+    if second == "HIT":
+        status = "active"
+    elif second == "BYPASS":
+        status = "disabled"
+
+    return {
+        "path": "/urls?is_active=true",
+        "first": first,
+        "second": second,
+        "status": status,
+    }
 
 
 def build_job_manifest(config: dict, lane: str) -> dict:
@@ -344,8 +405,9 @@ def build_scale_lab_payload(config: dict) -> dict:
             "mode": "local",
             "lanes": lanes,
             "workloadScale": None,
-            "runs": [],
-        }
+        "runs": [],
+        "cacheProof": None,
+    }
 
     return {
         "enabled": True,
@@ -353,6 +415,7 @@ def build_scale_lab_payload(config: dict) -> dict:
         "lanes": lanes,
         "workloadScale": get_workload_scale(config),
         "runs": list_scale_runs(config),
+        "cacheProof": probe_cache_headers(config),
     }
 
 

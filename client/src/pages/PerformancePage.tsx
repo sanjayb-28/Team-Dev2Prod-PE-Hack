@@ -60,6 +60,17 @@ function latestRunOutcome(run: ScaleLabRun | null) {
     return null
   }
 
+  if (run.lane === 'gold-cache-burst') {
+    const targetMet = run.summary.errorRate < 0.05
+    return {
+      tone: targetMet ? 'good' : 'bad',
+      label: targetMet ? 'Burst held steady' : 'Error budget missed',
+      detail: targetMet
+        ? 'The cached burst stayed below the 5% error budget under the heaviest lane.'
+        : 'The cached burst crossed the 5% error budget and needs more tuning.',
+    }
+  }
+
   if (run.lane === 'silver-scale-out') {
     const targetMet = run.summary.p95LatencyMs < 3000 && run.summary.errorRate < 0.05
     return {
@@ -153,10 +164,11 @@ export default function PerformancePage() {
       <section className="performance-hero">
         <div className="section-heading">
           <p className="eyebrow">Performance</p>
-          <h1>Run baseline and scale-out checks from the cluster.</h1>
+          <h1>Run baseline, scale-out, and cache-burst checks from the cluster.</h1>
           <p>
-            The scale lab can switch the workload between one and two replicas, launch a
-            benchmark run, and report the result back into this surface.
+            The scale lab can rebalance the workload, launch a benchmark job, and bring
+            the latest latency, error-rate, and throughput evidence back into this
+            surface.
           </p>
         </div>
 
@@ -177,6 +189,14 @@ export default function PerformancePage() {
             <div>
               <dt>Latest run</dt>
               <dd>{latestRun ? latestRun.label : 'No benchmark run yet'}</dd>
+            </div>
+            <div>
+              <dt>Cache proof</dt>
+              <dd>
+                {snapshot?.cacheProof
+                  ? `${snapshot.cacheProof.first ?? '—'} → ${snapshot.cacheProof.second ?? '—'}`
+                  : 'Waiting for cache data'}
+              </dd>
             </div>
           </dl>
         </div>
@@ -259,6 +279,26 @@ export default function PerformancePage() {
       ) : null}
 
       <section className="performance-layout">
+        <article className="performance-panel">
+          <p className="eyebrow">Cache proof</p>
+          <h2>Read-path cache status</h2>
+          {snapshot?.cacheProof ? (
+            <div className={`performance-outcome performance-outcome--${snapshot.cacheProof.second === 'HIT' ? 'good' : 'bad'}`}>
+              <strong>
+                {snapshot.cacheProof.first ?? '—'} → {snapshot.cacheProof.second ?? '—'}
+              </strong>
+              <p>
+                The control plane probes {snapshot.cacheProof.path} twice. A warmed Redis
+                path should settle on a second-request hit.
+              </p>
+            </div>
+          ) : (
+            <p className="performance-note">
+              Cache proof appears here once the live workload responds with cache headers.
+            </p>
+          )}
+        </article>
+
         <article className="performance-panel">
           <p className="eyebrow">Latest result</p>
           <h2>{latestRun ? latestRun.label : 'Waiting for the first cluster run'}</h2>
