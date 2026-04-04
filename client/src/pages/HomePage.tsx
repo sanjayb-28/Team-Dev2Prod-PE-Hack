@@ -110,7 +110,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
         </div>
 
         <div className="landing-hero__visual">
-          <img src="/hero-pictogram.svg" alt="" className="hero-visual-image" />
+          <img src="/k8s.png" alt="" className="hero-visual-image" />
         </div>
       </section>
 

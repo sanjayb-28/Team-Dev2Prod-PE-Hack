@@ -353,11 +353,11 @@ button:disabled {
 }
 
 .hero-visual-image {
-  width: min(100%, 30rem);
+  width: min(100%, 32rem);
   height: auto;
-  color: var(--ink);
-  filter: sepia(0.18) saturate(1.35) hue-rotate(158deg);
-  transform: scale(1.28);
+  object-fit: contain;
+  filter: saturate(1.02) contrast(1.02);
+  transform: scale(1.04);
 }
 
 .landing-strip {
