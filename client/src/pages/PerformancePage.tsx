@@ -31,6 +31,13 @@ function formatPercent(value: number | undefined) {
   return `${(value * 100).toFixed(2)}%`
 }
 
+function formatRate(value: number | undefined) {
+  if (typeof value !== 'number') {
+    return 'Waiting'
+  }
+  return `${value.toFixed(2)} req/s`
+}
+
 function toneForRun(status: string) {
   if (status === 'completed') {
     return 'good'
@@ -279,6 +286,10 @@ export default function PerformancePage() {
                 <dt>Requests</dt>
                 <dd>{latestRun.summary.requestCount}</dd>
               </div>
+              <div>
+                <dt>Throughput</dt>
+                <dd>{formatRate(latestRun.summary.requestRatePerSecond)}</dd>
+              </div>
             </dl>
           ) : (
             <p className="performance-note">
@@ -302,6 +313,12 @@ export default function PerformancePage() {
                     {run.concurrency} users • {run.replicas} replicas • {run.status} •{' '}
                     {formatUpdatedAt(run.createdAt)}
                   </p>
+                  {run.summary ? (
+                    <p>
+                      P95 {run.summary.p95LatencyMs} ms • {formatPercent(run.summary.errorRate)}{' '}
+                      errors • {formatRate(run.summary.requestRatePerSecond)}
+                    </p>
+                  ) : null}
                 </div>
               ))
             )}

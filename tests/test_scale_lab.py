@@ -18,6 +18,23 @@ __DEV2PROD_SUMMARY__
         "avgLatencyMs": 42.4,
         "errorRate": 0.01,
         "requestCount": 1200,
+        "requestRatePerSecond": 0.0,
+    }
+
+
+def test_parse_summary_from_logs_supports_flat_k6_export_shape():
+    logs = """
+something before
+__DEV2PROD_SUMMARY__
+{"metrics":{"http_req_duration":{"avg":3292.6258,"p(95)":4899.2039},"http_req_failed":{"value":0},"http_reqs":{"count":1490,"rate":43.2213}}}
+"""
+
+    assert parse_summary_from_logs(logs) == {
+        "p95LatencyMs": 4899.2,
+        "avgLatencyMs": 3292.63,
+        "errorRate": 0.0,
+        "requestCount": 1490,
+        "requestRatePerSecond": 43.22,
     }
 
 

@@ -102,6 +102,7 @@ export interface ScaleLabSummary {
   avgLatencyMs: number
   errorRate: number
   requestCount: number
+  requestRatePerSecond: number
 }
 
 export interface ScaleLabRun {

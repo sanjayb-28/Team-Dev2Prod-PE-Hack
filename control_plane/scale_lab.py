@@ -234,15 +234,26 @@ def parse_summary_from_logs(text: str) -> dict | None:
         return None
 
     metrics = payload.get("metrics", {})
-    duration = metrics.get("http_req_duration", {}).get("values", {})
-    failed = metrics.get("http_req_failed", {}).get("values", {})
-    requests = metrics.get("http_reqs", {}).get("values", {})
+    duration = metrics.get("http_req_duration", {})
+    failed = metrics.get("http_req_failed", {})
+    requests = metrics.get("http_reqs", {})
+
+    def metric_value(metric: dict, key: str, fallback: float = 0) -> float:
+        if not isinstance(metric, dict):
+            return fallback
+        if isinstance(metric.get(key), (int, float)):
+            return float(metric[key])
+        values = metric.get("values", {})
+        if isinstance(values, dict) and isinstance(values.get(key), (int, float)):
+            return float(values[key])
+        return fallback
 
     return {
-        "p95LatencyMs": round(float(duration.get("p(95)", 0)), 2),
-        "avgLatencyMs": round(float(duration.get("avg", 0)), 2),
-        "errorRate": round(float(failed.get("rate", 0)), 4),
-        "requestCount": int(requests.get("count", 0)),
+        "p95LatencyMs": round(metric_value(duration, "p(95)"), 2),
+        "avgLatencyMs": round(metric_value(duration, "avg"), 2),
+        "errorRate": round(metric_value(failed, "rate", metric_value(failed, "value")), 4),
+        "requestCount": int(metric_value(requests, "count")),
+        "requestRatePerSecond": round(metric_value(requests, "rate"), 2),
     }
 
 
