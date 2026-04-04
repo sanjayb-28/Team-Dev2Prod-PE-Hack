@@ -18,6 +18,8 @@ RESOURCE_GROUPS = {
 }
 EXPERIMENT_RESOURCE_TYPES = ("podchaos", "networkchaos", "stresschaos")
 EXPERIMENT_CLEANUP_GRACE_SECONDS = 180
+ARCHIVED_EXPERIMENT_GRACE_SECONDS = 600
+ARCHIVED_EXPERIMENTS: dict[str, dict] = {}
 
 
 def is_cluster_mode() -> bool:
@@ -252,8 +254,43 @@ def should_prune_experiment(experiment: dict, now: datetime | None = None) -> bo
     return current_time >= updated_at + timedelta(seconds=base_age)
 
 
+def archive_experiment(experiment: dict, now: datetime | None = None):
+    if not experiment.get("name"):
+        return
+
+    archived = dict(experiment)
+    archived["archivedAt"] = (now or datetime.now(timezone.utc)).isoformat()
+    ARCHIVED_EXPERIMENTS[str(experiment["name"])] = archived
+
+
+def list_archived_experiments(now: datetime | None = None) -> list[dict]:
+    current_time = now or datetime.now(timezone.utc)
+    archived_experiments: list[dict] = []
+
+    for name, experiment in list(ARCHIVED_EXPERIMENTS.items()):
+        archived_at = parse_kubernetes_timestamp(experiment.get("archivedAt"))
+        if archived_at is not None and current_time >= archived_at + timedelta(
+            seconds=ARCHIVED_EXPERIMENT_GRACE_SECONDS
+        ):
+            ARCHIVED_EXPERIMENTS.pop(name, None)
+            continue
+
+        archived_experiments.append(
+            {key: value for key, value in experiment.items() if key != "archivedAt"}
+        )
+
+    return archived_experiments
+
+
+def clear_archived_experiments():
+    ARCHIVED_EXPERIMENTS.clear()
+
+
 def list_cluster_experiments(namespace: str, active_pod_names: set[str]) -> list[dict]:
     experiments: list[dict] = []
+    current_time = datetime.now(timezone.utc)
+    live_names: set[str] = set()
+
     for kind in EXPERIMENT_RESOURCE_TYPES:
         try:
             response = load_kubernetes_json(
@@ -267,18 +304,29 @@ def list_cluster_experiments(namespace: str, active_pod_names: set[str]) -> list
                 normalize_experiment(kind, item),
                 active_pod_names,
             )
-            if should_prune_experiment(experiment):
+            if should_prune_experiment(experiment, now=current_time):
+                archive_experiment(experiment, now=current_time)
                 try:
                     delete_kubernetes_resource(
                         f"/apis/chaos-mesh.org/v1alpha1/namespaces/{namespace}/{kind}/{quote(experiment['name'])}"
                     )
                 except (HTTPError, URLError):
                     experiments.append(experiment)
+                    live_names.add(str(experiment.get("name", "")))
                 continue
 
             experiments.append(experiment)
+            live_names.add(str(experiment.get("name", "")))
 
-    return experiments
+    for experiment in list_archived_experiments(now=current_time):
+        if str(experiment.get("name", "")) not in live_names:
+            experiments.append(experiment)
+
+    return sorted(
+        experiments,
+        key=lambda experiment: str(experiment.get("updatedAt") or ""),
+        reverse=True,
+    )
 
 
 def list_local_resources(config: dict) -> dict:
