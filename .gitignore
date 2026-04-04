@@ -12,6 +12,7 @@ build/
 
 # Environment variables
 .env
+local.db
 
 # uv
 uv.lock

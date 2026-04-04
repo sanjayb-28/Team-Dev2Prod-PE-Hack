@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 from peewee import DatabaseProxy, Model, PostgresqlDatabase
 from playhouse.db_url import connect
@@ -15,7 +16,7 @@ def init_db(app):
     database_url = os.environ.get("DATABASE_URL")
     if database_url:
         database = connect(database_url)
-    else:
+    elif os.environ.get("DATABASE_HOST") or os.environ.get("DATABASE_NAME"):
         database = PostgresqlDatabase(
             os.environ.get("DATABASE_NAME", "hackathon_db"),
             host=os.environ.get("DATABASE_HOST", "localhost"),
@@ -23,6 +24,8 @@ def init_db(app):
             user=os.environ.get("DATABASE_USER", "postgres"),
             password=os.environ.get("DATABASE_PASSWORD", "postgres"),
         )
+    else:
+        database = connect(f"sqlite:///{Path.cwd() / 'local.db'}")
     db.initialize(database)
 
     @app.before_request
