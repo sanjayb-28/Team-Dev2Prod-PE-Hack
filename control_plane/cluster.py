@@ -142,13 +142,37 @@ def normalize_event(item: dict) -> dict:
 def normalize_experiment(kind: str, item: dict) -> dict:
     metadata = item.get("metadata", {})
     status = item.get("status", {})
+    labels = metadata.get("labels", {})
+    experiment_status = status.get("experiment", {})
+    container_records = experiment_status.get("containerRecords", [])
+    phases = {
+        str(record.get("phase", "")).strip().lower()
+        for record in container_records
+        if record.get("phase")
+    }
+    conditions = {
+        str(condition.get("type", "")): str(condition.get("status", "False")).lower() == "true"
+        for condition in status.get("conditions", [])
+    }
+
+    if conditions.get("Paused"):
+        normalized_status = "paused"
+    elif conditions.get("AllRecovered"):
+        normalized_status = "recovered"
+    elif "injected" in phases or experiment_status.get("desiredPhase") == "Run":
+        normalized_status = "running"
+    elif conditions.get("Selected") or conditions.get("AllInjected"):
+        normalized_status = "pending"
+    else:
+        normalized_status = "unknown"
 
     return {
         "kind": "experiment",
-        "type": kind,
+        "type": labels.get("dev2prod.io/experiment-type", kind),
         "name": metadata.get("name"),
-        "status": status.get("experiment", {}).get("phase", "unknown").lower(),
-        "target": metadata.get("labels", {}).get("app.kubernetes.io/name"),
+        "status": normalized_status,
+        "target": labels.get("dev2prod.io/target-name")
+        or labels.get("app.kubernetes.io/name"),
         "updatedAt": metadata.get("creationTimestamp"),
     }
 
@@ -264,12 +288,19 @@ def get_resource_detail(config: dict, kind: str, name: str) -> dict | None:
 def get_resource_events(config: dict, kind: str, name: str) -> list[dict]:
     payload = list_namespace_resources(config)
     normalized_kind = normalize_kind(kind)
+    experiment_kinds = {"podchaos", "networkchaos", "stresschaos"}
 
     return [
         event
         for event in payload["events"]
         if event.get("resourceName") == name
-        and normalize_kind(event.get("resourceKind", "")) == normalized_kind
+        and (
+            normalize_kind(event.get("resourceKind", "")) == normalized_kind
+            or (
+                normalized_kind == "experiment"
+                and normalize_kind(event.get("resourceKind", "")) in experiment_kinds
+            )
+        )
     ]
 
 
