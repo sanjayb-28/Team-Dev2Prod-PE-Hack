@@ -356,7 +356,7 @@ def test_stream_returns_cluster_snapshot(monkeypatch):
     )
 
     with app.test_client() as client:
-        response = client.get("/api/stream")
+        response = client.get("/api/stream?once=1")
 
     body = response.get_data(as_text=True)
     assert response.status_code == 200
