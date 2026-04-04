@@ -191,11 +191,19 @@ def test_get_resource_events_matches_chaos_resource_kinds(monkeypatch):
                     "resourceKind": "PodChaos",
                     "resourceName": "pod-kill-3eacfc",
                     "reason": "Applied",
+                    "timestamp": "2026-04-04T15:00:00Z",
+                },
+                {
+                    "resourceKind": "PodNetworkChaos",
+                    "resourceName": "pod-kill-3eacfc",
+                    "reason": "Recovered",
+                    "timestamp": "2026-04-04T15:01:00Z",
                 },
                 {
                     "resourceKind": "Pod",
                     "resourceName": "workload-api-abc123",
                     "reason": "Started",
+                    "timestamp": "2026-04-04T14:59:00Z",
                 },
             ],
         },
@@ -203,8 +211,15 @@ def test_get_resource_events_matches_chaos_resource_kinds(monkeypatch):
 
     assert get_resource_events(config, "experiment", "pod-kill-3eacfc") == [
         {
+            "resourceKind": "PodNetworkChaos",
+            "resourceName": "pod-kill-3eacfc",
+            "reason": "Recovered",
+            "timestamp": "2026-04-04T15:01:00Z",
+        },
+        {
             "resourceKind": "PodChaos",
             "resourceName": "pod-kill-3eacfc",
             "reason": "Applied",
+            "timestamp": "2026-04-04T15:00:00Z",
         }
     ]

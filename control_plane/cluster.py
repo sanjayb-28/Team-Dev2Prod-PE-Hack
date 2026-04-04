@@ -333,9 +333,14 @@ def get_resource_detail(config: dict, kind: str, name: str) -> dict | None:
 def get_resource_events(config: dict, kind: str, name: str) -> list[dict]:
     payload = list_namespace_resources(config)
     normalized_kind = normalize_kind(kind)
-    experiment_kinds = {"podchaos", "networkchaos", "stresschaos"}
+    experiment_kinds = {
+        "podchaos",
+        "networkchaos",
+        "stresschaos",
+        "podnetworkchaos",
+    }
 
-    return [
+    matched_events = [
         event
         for event in payload["events"]
         if event.get("resourceName") == name
@@ -347,6 +352,12 @@ def get_resource_events(config: dict, kind: str, name: str) -> list[dict]:
             )
         )
     ]
+
+    return sorted(
+        matched_events,
+        key=lambda event: event.get("timestamp") or "",
+        reverse=True,
+    )
 
 
 def get_resource_logs(config: dict, kind: str, name: str) -> dict | None:

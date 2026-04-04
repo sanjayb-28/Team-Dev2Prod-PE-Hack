@@ -102,6 +102,23 @@ function formatStatusText(status: string) {
   return status.replace(/([A-Z])/g, ' $1').replace(/^./, (value) => value.toUpperCase())
 }
 
+function buildEvidenceEvents(resource: ResourceRecord | null, events: ClusterEventRecord[]) {
+  if (resource?.kind !== 'experiment') {
+    return events.slice(0, 5)
+  }
+
+  const highlightedReasons = new Set(['Applied', 'Started', 'Recovered', 'TimeUp'])
+  const preferredEvents = events.filter((event) =>
+    highlightedReasons.has(String(event.reason ?? '')),
+  )
+
+  if (preferredEvents.length > 0) {
+    return preferredEvents.slice(0, 5)
+  }
+
+  return events.slice(0, 5)
+}
+
 function formatUpdatedAt(value: unknown) {
   if (typeof value !== 'string' || !value) {
     return 'Waiting for the first cluster update'
@@ -430,6 +447,7 @@ function App() {
   const activeExperiments = experiments.filter((experiment) =>
     ['running', 'pending', 'paused'].includes(String(experiment.status ?? 'unknown')),
   )
+  const displayedEvidenceEvents = buildEvidenceEvents(displayedResource, resourceEvents)
   const canTargetFaults = matchesWorkloadScope(displayedResource, clusterStatus)
   const chaosReady = clusterStatus?.chaosMesh.status === 'ready'
   const canRunFaults = Boolean(displayedResource && canTargetFaults && chaosReady)
@@ -693,15 +711,17 @@ function App() {
                   <p>
                     {inspectorState === 'loading'
                       ? 'Refreshing recent events.'
-                      : 'Recent events attached to the selected resource.'}
+                      : displayedResource.kind === 'experiment'
+                        ? 'Cluster events that show how this fault was applied and recovered.'
+                        : 'Recent events attached to the selected resource.'}
                   </p>
                 </div>
 
-                {resourceEvents.length === 0 ? (
+                {displayedEvidenceEvents.length === 0 ? (
                   <p className="empty-state">No recent events for this resource.</p>
                 ) : (
                   <ul className="event-list">
-                    {resourceEvents.slice(0, 5).map((event, index) => (
+                    {displayedEvidenceEvents.map((event, index) => (
                       <li key={`${event.name ?? event.reason ?? 'event'}-${index}`}>
                         <strong>{event.reason ?? event.type ?? 'Status update'}</strong>
                         <p>{event.message ?? 'The cluster reported a state change without extra notes.'}</p>
