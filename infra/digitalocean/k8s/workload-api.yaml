@@ -33,6 +33,10 @@ spec:
                 secretKeyRef:
                   name: workload-env
                   key: DATABASE_URL
+            - name: DATABASE_POOL_MAX_CONNECTIONS
+              value: "1"
+            - name: DATABASE_POOL_STALE_TIMEOUT
+              value: "300"
             - name: REDIS_URL
               value: redis://redis:6379/0
           ports:
