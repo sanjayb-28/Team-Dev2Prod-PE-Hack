@@ -1,10 +1,10 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from secrets import choice
 from string import ascii_letters, digits
 from urllib.parse import urlparse
 
 from flask import Blueprint, jsonify, request
-from peewee import DoesNotExist, IntegrityError
+from peewee import DoesNotExist, IntegrityError, fn
 
 from app.cache import (
     URL_CACHE_PREFIX,
@@ -32,6 +32,19 @@ def format_timestamp(value):
     return value.replace(tzinfo=None).isoformat(timespec="seconds")
 
 
+def next_visible_timestamp(current_value):
+    if current_value.tzinfo is None:
+        now = datetime.now().replace(microsecond=0)
+        current_floor = current_value.replace(microsecond=0)
+    else:
+        now = datetime.now(UTC)
+        current_floor = current_value.astimezone(UTC).replace(microsecond=0)
+    now_floor = now.replace(microsecond=0)
+    if now_floor <= current_floor:
+        return current_floor + timedelta(seconds=1)
+    return now
+
+
 def serialize_url(link):
     return {
         "id": link.id,
@@ -40,6 +53,7 @@ def serialize_url(link):
         "original_url": link.target_url,
         "title": link.title,
         "is_active": link.is_active,
+        "visit_count": link.visit_count,
         "created_at": format_timestamp(link.created_at),
         "updated_at": format_timestamp(link.updated_at),
     }
@@ -77,6 +91,8 @@ def validate_user_reference(user_id):
 
 def validate_title(title):
     if title is not None and not isinstance(title, str):
+        return "Title must be plain text."
+    if isinstance(title, str) and not title.strip():
         return "Title must be plain text."
     if title is not None and len(title.strip()) > TITLE_MAX_LENGTH:
         return f"Title must be {TITLE_MAX_LENGTH} characters or fewer."
@@ -129,16 +145,24 @@ def get_url_or_none(url_id):
         return None
 
 
+def short_code_exists(short_code):
+    return (
+        Link.select()
+        .where(fn.LOWER(Link.slug) == short_code.lower())
+        .exists()
+    )
+
+
 def generate_short_code(length=6):
     for _ in range(20):
         candidate = "".join(choice(SHORT_CODE_ALPHABET) for _ in range(length))
-        if not Link.select().where(Link.slug == candidate).exists():
+        if not short_code_exists(candidate):
             return candidate
     raise RuntimeError("Could not generate a unique short code.")
 
 
 def resolve_create_url_conflict(short_code):
-    if Link.select().where(Link.slug == short_code).exists():
+    if short_code_exists(short_code):
         return error_response("conflict", "That short code is already in use.", 409)
     return None
 
@@ -220,21 +244,28 @@ def create_url():
     if url_error:
         return error_response("validation_failed", url_error, 422)
 
-    title_error = validate_title(payload.get("title"))
+    raw_title = payload.get("title")
+    title_error = validate_title(raw_title)
     if title_error:
         return error_response("validation_failed", title_error, 422)
 
+    short_code_was_provided = "short_code" in payload
     short_code = payload.get("short_code")
-    short_code_was_provided = short_code is not None
-    if short_code is not None:
+    if short_code_was_provided:
         short_code_error = validate_short_code(short_code)
         if short_code_error:
             return error_response("validation_failed", short_code_error, 422)
         short_code = short_code.strip()
+        conflict_response = resolve_create_url_conflict(short_code)
+        if conflict_response is not None:
+            return conflict_response
     else:
         short_code = generate_short_code()
 
-    title = payload.get("title").strip() if payload.get("title", "").strip() else None
+    while short_code_exists(short_code):
+        short_code = generate_short_code()
+
+    title = raw_title.strip() if isinstance(raw_title, str) and raw_title.strip() else None
     link = None
     for _ in range(6):
         try:
@@ -278,7 +309,14 @@ def update_url(url_id):
         return error_response("not_found", "We could not find that URL.", 404)
 
     payload = request.get_json(silent=True)
-    if not isinstance(payload, dict) or not payload:
+    if not isinstance(payload, dict):
+        return error_response(
+            "validation_failed",
+            "A JSON body is required.",
+            422,
+        )
+
+    if not payload:
         return error_response(
             "validation_failed",
             "Include at least one field to update.",
@@ -324,7 +362,7 @@ def update_url(url_id):
             )
         link.is_active = payload["is_active"]
 
-    link.updated_at = datetime.now(UTC)
+    link.updated_at = next_visible_timestamp(link.updated_at)
     link.save()
     record_event(
         link,
@@ -347,7 +385,7 @@ def delete_url(url_id):
 
     if link.is_active:
         link.is_active = False
-        link.updated_at = datetime.now(UTC)
+        link.updated_at = next_visible_timestamp(link.updated_at)
         link.save()
         record_event(
             link,

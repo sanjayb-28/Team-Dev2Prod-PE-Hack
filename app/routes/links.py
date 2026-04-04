@@ -1,11 +1,13 @@
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from urllib.parse import urlparse
 
 from flask import Blueprint, jsonify, redirect, request
 from peewee import DoesNotExist
 from peewee import IntegrityError
+from peewee import fn
 
+from app.cache import URL_CACHE_PREFIX, invalidate_cache_prefix
 from app.errors import error_response
 from app.models import Event, Link, User
 from app.services import record_event
@@ -42,6 +44,19 @@ def serialize_event(event):
         "timestamp": event.timestamp.isoformat(),
         "details": details,
     }
+
+
+def next_visible_timestamp(current_value):
+    if current_value.tzinfo is None:
+        now = datetime.now().replace(microsecond=0)
+        current_floor = current_value.replace(microsecond=0)
+    else:
+        now = datetime.now(UTC)
+        current_floor = current_value.astimezone(UTC).replace(microsecond=0)
+    now_floor = now.replace(microsecond=0)
+    if now_floor <= current_floor:
+        return current_floor + timedelta(seconds=1)
+    return now
 
 
 def validate_target_url(target_url):
@@ -103,7 +118,7 @@ def validate_payload(payload):
 
 def get_link_or_none(slug):
     try:
-        return Link.get(Link.slug == slug)
+        return Link.get(fn.LOWER(Link.slug) == slug.lower())
     except DoesNotExist:
         return None
 
@@ -147,7 +162,7 @@ def resolve_link(slug):
         return error_response("inactive_link", "This link is inactive.", 410)
 
     link.visit_count += 1
-    link.updated_at = datetime.now(UTC)
+    link.updated_at = next_visible_timestamp(link.updated_at)
     link.save()
     record_event(
         link,
@@ -157,6 +172,7 @@ def resolve_link(slug):
             "original_url": link.target_url,
         },
     )
+    invalidate_cache_prefix(URL_CACHE_PREFIX)
 
     return redirect(link.target_url, code=302)
 
@@ -214,7 +230,7 @@ def update_link(slug):
             )
         link.is_active = payload["isActive"]
 
-    link.updated_at = datetime.now(UTC)
+    link.updated_at = next_visible_timestamp(link.updated_at)
     link.save()
     record_event(
         link,
