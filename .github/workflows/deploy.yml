@@ -179,6 +179,13 @@ jobs:
           kubectl -n "$DO_NAMESPACE" rollout status deployment/control-plane --timeout=180s
           kubectl -n "$DO_NAMESPACE" rollout status deployment/client --timeout=180s
 
+      - name: Seed managed database
+        run: |
+          kubectl -n "$DO_NAMESPACE" delete job workload-seed --ignore-not-found=true
+          kubectl -n "$DO_NAMESPACE" apply -f "$RUNNER_TEMP/digitalocean-k8s/workload-seed.yaml"
+          kubectl -n "$DO_NAMESPACE" wait --for=condition=complete job/workload-seed --timeout=300s
+          kubectl -n "$DO_NAMESPACE" logs job/workload-seed
+
       - name: Show public service
         run: |
           kubectl -n "$DO_NAMESPACE" get deployment,service,pod -o wide

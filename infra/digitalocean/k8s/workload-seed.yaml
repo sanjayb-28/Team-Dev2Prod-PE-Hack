@@ -1,0 +1,32 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: workload-seed
+  namespace: dev2prod
+spec:
+  backoffLimit: 1
+  ttlSecondsAfterFinished: 300
+  template:
+    spec:
+      imagePullSecrets:
+        - name: do-registry
+      restartPolicy: Never
+      containers:
+        - name: workload-seed
+          image: __BACKEND_IMAGE__
+          imagePullPolicy: IfNotPresent
+          command:
+            - /workspace/.venv/bin/python
+            - scripts/seed_all.py
+            - /workspace/data/seed
+            - --reset
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: workload-env
+                  key: DATABASE_URL
+            - name: DATABASE_POOL_MAX_CONNECTIONS
+              value: "1"
+            - name: DATABASE_POOL_STALE_TIMEOUT
+              value: "300"

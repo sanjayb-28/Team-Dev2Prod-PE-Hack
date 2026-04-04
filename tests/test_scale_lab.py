@@ -3,6 +3,7 @@ from control_plane.scale_lab import (
     build_scale_lab_payload,
     parse_run_status,
     parse_summary_from_logs,
+    render_k6_script,
 )
 
 
@@ -73,3 +74,13 @@ def test_build_scale_lab_payload_returns_local_mode_without_cluster(monkeypatch)
         "runs": [],
         "cacheProof": None,
     }
+
+
+def test_gold_k6_script_uses_seeded_user_and_url_mix():
+    script = render_k6_script({"WORKLOAD_SERVICE_NAME": "workload-api"}, "gold-cache-burst")
+
+    assert "const urlIds =" in script
+    assert "const userIds =" in script
+    assert "/urls?user_id=${userIds" in script
+    assert "/urls/${urlIds" in script
+    assert "setup()" in script
