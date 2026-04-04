@@ -12,6 +12,7 @@ import {
   fetchClusterStatus,
   fetchResourceDetail,
   fetchResourceEvents,
+  fetchResourceLogs,
   fetchResourceSnapshot,
   openClusterStream,
   resourceGroupMeta,
@@ -22,6 +23,7 @@ import type {
   ExperimentTypeName,
   ResourceGroupName,
   ResourceKindName,
+  ResourceLogRecord,
   ResourceRecord,
   ResourceSnapshot,
 } from './types'
@@ -293,6 +295,7 @@ function App() {
   const [selectedName, setSelectedName] = useState<string | null>(null)
   const [resourceDetail, setResourceDetail] = useState<ResourceRecord | null>(null)
   const [resourceEvents, setResourceEvents] = useState<ClusterEventRecord[]>([])
+  const [resourceLogs, setResourceLogs] = useState<ResourceLogRecord | null>(null)
   const [query, setQuery] = useState('')
   const [pageState, setPageState] = useState<RequestState>('loading')
   const [inspectorState, setInspectorState] = useState<RequestState>('ready')
@@ -401,15 +404,17 @@ function App() {
       setInspectorState('loading')
 
       try {
-        const [detailResponse, eventsResponse] = await Promise.all([
+        const [detailResponse, eventsResponse, logsResponse] = await Promise.all([
           fetchResourceDetail(kind, resourceName),
           fetchResourceEvents(kind, resourceName),
+          fetchResourceLogs(kind, resourceName),
         ])
 
         if (!cancelled) {
           startTransition(() => {
             setResourceDetail(detailResponse.data)
             setResourceEvents(eventsResponse.data)
+            setResourceLogs(logsResponse.data)
             setInspectorState('ready')
           })
         }
@@ -417,6 +422,7 @@ function App() {
         if (!cancelled) {
           startTransition(() => {
             setInspectorState('error')
+            setResourceLogs(null)
           })
         }
       }
@@ -729,6 +735,23 @@ function App() {
                       </li>
                     ))}
                   </ul>
+                )}
+              </section>
+
+              <section className="detail-events detail-events--logs">
+                <div className="detail-events__header">
+                  <h3>Logs</h3>
+                  <p>{resourceLogs?.note ?? 'Recent lines from the selected resource.'}</p>
+                </div>
+
+                {!resourceLogs || resourceLogs.entries.length === 0 ? (
+                  <p className="empty-state">No log lines are available right now.</p>
+                ) : (
+                  <pre className="log-block">
+                    {resourceLogs.entries.slice(-20).map((entry, index) => (
+                      <code key={`${index}-${entry.line}`}>{entry.line}</code>
+                    ))}
+                  </pre>
                 )}
               </section>
             </>

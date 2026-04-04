@@ -431,6 +431,12 @@ def get_resource_logs(config: dict, kind: str, name: str) -> dict | None:
             ),
         }
 
+    if normalized_kind == "experiment":
+        payload = list_namespace_resources(config)
+        experiment_logs = get_experiment_logs(config, resource, payload["resources"]["pods"])
+        if experiment_logs is not None:
+            return experiment_logs
+
     if normalized_kind != "pod":
         return {
             "kind": resource.get("kind"),
@@ -464,4 +470,78 @@ def get_resource_logs(config: dict, kind: str, name: str) -> dict | None:
             if entries
             else "The pod log stream is empty right now."
         ),
+    }
+
+
+def read_pod_logs(namespace: str, pod_name: str) -> list[dict] | None:
+    try:
+        log_text = load_kubernetes_text(
+            f"/api/v1/namespaces/{namespace}/pods/{quote(pod_name)}/log?tailLines=80"
+        )
+    except (HTTPError, URLError):
+        return None
+
+    return [{"line": line} for line in log_text.splitlines()[-80:] if line.strip()]
+
+
+def get_latest_workload_pod(config: dict, pods: list[dict]) -> dict | None:
+    workload_prefix = f"{config.get('WORKLOAD_DEPLOYMENT_NAME', 'workload-api')}-"
+    workload_pods = [
+        pod
+        for pod in pods
+        if str(pod.get("name", "")).startswith(workload_prefix)
+    ]
+    if not workload_pods:
+        return None
+
+    return sorted(
+        workload_pods,
+        key=lambda pod: str(pod.get("updatedAt") or ""),
+        reverse=True,
+    )[0]
+
+
+def get_experiment_logs(config: dict, resource: dict, pods: list[dict]) -> dict | None:
+    namespace = config["CLUSTER_NAMESPACE"]
+    target_kind = normalize_kind(resource.get("targetKind"))
+    target_name = str(resource.get("target") or "").strip()
+    selected_pod: dict | None = None
+
+    if target_kind == "pod" and target_name:
+        selected_pod = next((pod for pod in pods if pod.get("name") == target_name), None)
+
+    if selected_pod is None:
+        selected_pod = get_latest_workload_pod(config, pods)
+
+    if selected_pod is None:
+        return {
+            "kind": resource.get("kind"),
+            "name": resource.get("name"),
+            "entries": [],
+            "note": "No workload pod logs are available for this fault run right now.",
+        }
+
+    pod_name = str(selected_pod.get("name") or "")
+    entries = read_pod_logs(namespace, pod_name)
+    if entries is None:
+        return {
+            "kind": resource.get("kind"),
+            "name": resource.get("name"),
+            "entries": [],
+            "note": "The workload pod logs are unavailable for this fault run right now.",
+        }
+
+    if target_kind == "pod" and target_name and pod_name != target_name:
+        note = f"Showing the latest lines from the replacement workload pod {pod_name}."
+    else:
+        note = f"Showing the latest lines from workload pod {pod_name}."
+
+    if not entries:
+        note = "The workload pod log stream is empty right now."
+
+    return {
+        "kind": resource.get("kind"),
+        "name": resource.get("name"),
+        "entries": entries,
+        "note": note,
     }

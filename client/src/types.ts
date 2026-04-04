@@ -55,6 +55,17 @@ export interface ClusterEventRecord {
   timestamp?: string | null
 }
 
+export interface ResourceLogEntry {
+  line: string
+}
+
+export interface ResourceLogRecord {
+  kind?: string
+  name?: string
+  entries: ResourceLogEntry[]
+  note?: string
+}
+
 export interface ResourceSnapshot {
   mode: string
   namespace: string
