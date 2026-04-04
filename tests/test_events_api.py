@@ -131,3 +131,22 @@ def test_create_event_rejects_non_object_details(client):
 
     assert response.status_code == 422
     assert response.get_json()["error"]["message"] == "details must be a JSON object."
+
+
+def test_list_events_includes_deleted_url_activity(client):
+    create_user(1)
+    link = create_link(1, slug="delete-event")
+    link.is_active = False
+    link.save()
+    Event.create(
+        link=link,
+        user_id=1,
+        event_type="deleted",
+        details='{"reason":"user_requested"}',
+    )
+
+    response = client.get("/events")
+
+    assert response.status_code == 200
+    assert response.get_json()[0]["event_type"] == "deleted"
+    assert response.get_json()[0]["details"] == {"reason": "user_requested"}

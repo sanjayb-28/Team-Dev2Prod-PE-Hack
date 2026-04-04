@@ -3,6 +3,7 @@ from tempfile import NamedTemporaryFile
 
 from flask import Blueprint, jsonify, request
 from peewee import DoesNotExist, IntegrityError
+from peewee import fn
 
 from app.errors import error_response
 from app.models import Event, Link, User
@@ -49,6 +50,13 @@ def validate_email(email):
 
 def get_existing_user_by_email(email):
     return User.select().where(User.email == email).first()
+
+
+def get_existing_user_by_username(username, exclude_user_id=None):
+    query = User.select().where(fn.LOWER(User.username) == username.casefold())
+    if exclude_user_id is not None:
+        query = query.where(User.id != exclude_user_id)
+    return query.first()
 
 
 def get_user_or_none(user_id):
@@ -116,9 +124,26 @@ def create_user():
     normalized_email = payload["email"].strip().lower()
     existing_user = get_existing_user_by_email(normalized_email)
     if existing_user is not None:
-        if existing_user.username == normalized_username:
+        if existing_user.username.strip().casefold() == normalized_username.casefold():
+            if existing_user.username != normalized_username:
+                existing_user.username = normalized_username
+                existing_user.save()
             return jsonify(serialize_user(existing_user)), 201
-        return error_response("conflict", "That email is already in use.", 409)
+
+        username_owner = get_existing_user_by_username(
+            normalized_username,
+            exclude_user_id=existing_user.id,
+        )
+        if username_owner is not None:
+            return error_response("conflict", "That username is already in use.", 409)
+
+        existing_user.username = normalized_username
+        existing_user.save()
+        return jsonify(serialize_user(existing_user)), 201
+
+    username_owner = get_existing_user_by_username(normalized_username)
+    if username_owner is not None:
+        return error_response("conflict", "That username is already in use.", 409)
 
     try:
         user = User.create(
@@ -158,7 +183,14 @@ def update_user(user_id):
         username_error = validate_username(payload.get("username"))
         if username_error:
             return error_response("validation_failed", username_error, 422)
-        user.username = payload["username"].strip()
+        normalized_username = payload["username"].strip()
+        username_owner = get_existing_user_by_username(
+            normalized_username,
+            exclude_user_id=user.id,
+        )
+        if username_owner is not None:
+            return error_response("conflict", "That username is already in use.", 409)
+        user.username = normalized_username
 
     if "email" in payload:
         email_error = validate_email(payload.get("email"))

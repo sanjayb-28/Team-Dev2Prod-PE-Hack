@@ -1,3 +1,4 @@
+import json
 from datetime import UTC, datetime
 
 from app.models import Event, Link, User
@@ -251,5 +252,29 @@ def test_delete_url(client):
     response = client.delete(f"/urls/{link.id}")
 
     assert response.status_code == 204
-    assert Link.select().where(Link.id == link.id).count() == 0
-    assert Event.select().where(Event.link == link).count() == 0
+    stored_link = Link.get_by_id(link.id)
+    assert stored_link.is_active is False
+    deleted_event = (
+        Event.select()
+        .where((Event.link == link) & (Event.event_type == "deleted"))
+        .first()
+    )
+    assert deleted_event is not None
+    assert json.loads(deleted_event.details) == {"reason": "user_requested"}
+
+
+def test_delete_url_is_idempotent(client):
+    create_user(1)
+    link = create_link(1, slug="delete-twice")
+
+    first_response = client.delete(f"/urls/{link.id}")
+    second_response = client.delete(f"/urls/{link.id}")
+
+    assert first_response.status_code == 204
+    assert second_response.status_code == 204
+    assert (
+        Event.select()
+        .where((Event.link == link) & (Event.event_type == "deleted"))
+        .count()
+        == 1
+    )
