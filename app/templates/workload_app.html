@@ -69,7 +69,6 @@
       }
 
       .eyebrow,
-      .metric dt,
       .table__meta {
         margin: 0;
         color: var(--muted);
@@ -97,7 +96,6 @@
 
       .hero__intro,
       .surface p,
-      .metric dd,
       .table td,
       .quick-links a {
         color: var(--muted);
@@ -141,25 +139,74 @@
         align-content: start;
       }
 
-      .metric {
-        margin: 0;
+      .status-grid {
         display: grid;
-        gap: 0.8rem;
+        gap: 0.85rem;
       }
 
-      .metric > div {
-        padding: 0.95rem 1rem;
-        border-top: 1px solid rgba(22, 35, 58, 0.1);
+      .status-card {
+        padding: 1rem 1.05rem;
+        border: 1px solid rgba(22, 35, 58, 0.1);
+        background: rgba(255, 255, 255, 0.72);
       }
 
-      .metric dd {
-        margin: 0.3rem 0 0;
-        font-size: 1.05rem;
-        line-height: 1.35;
+      .status-card h3 {
+        margin: 0.08rem 0 0;
+        font-size: 0.96rem;
+        letter-spacing: -0.02em;
       }
 
-      .metric dd strong {
+      .status-card__value {
+        margin-top: 0.42rem;
+        font-size: 1.06rem;
+        font-weight: 620;
+        color: #16233a;
+        line-height: 1.3;
+      }
+
+      .status-card__value strong,
+      .status-card__ok .status-card__value {
         color: var(--teal);
+      }
+
+      .status-card__detail,
+      .status-card__sub {
+        margin: 0.3rem 0 0;
+        color: var(--muted);
+        font-size: 0.92rem;
+        line-height: 1.45;
+      }
+
+      .status-card__sub {
+        font-size: 0.82rem;
+      }
+
+      .status-card__split {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.7rem 0.9rem;
+        margin-top: 0.7rem;
+      }
+
+      .status-card__split span {
+        display: block;
+        color: var(--muted);
+        font-size: 0.72rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .status-card__split strong {
+        display: block;
+        margin-top: 0.18rem;
+        font-size: 1rem;
+        color: #16233a;
+      }
+
+      .hero__meta {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.84rem;
       }
 
       .surface {
@@ -255,24 +302,80 @@
             <a href="{{ prefix }}/health">View health</a>
             <a href="{{ prefix }}/urls">Browse URLs JSON</a>
             <a href="{{ prefix }}/events">Browse events JSON</a>
+            <a href="{{ prefix }}/status-summary">View status JSON</a>
           </div>
+          <p class="hero__meta">The status rail refreshes from live workload endpoints every 15 seconds.</p>
         </div>
 
         <aside class="hero__rail" aria-label="Workload status">
-          <dl class="metric">
-            <div>
-              <dt>Status</dt>
-              <dd><strong>Running</strong> and serving live data</dd>
-            </div>
-            <div>
-              <dt>Public path</dt>
-              <dd>{{ prefix or "/" }}</dd>
-            </div>
-            <div>
-              <dt>Proof</dt>
-              <dd>Open any short code below or the health endpoint to confirm the service is live.</dd>
-            </div>
-          </dl>
+          <div class="status-grid">
+            <section class="status-card status-card__ok">
+              <p class="eyebrow">Health endpoint</p>
+              <h3>Live service check</h3>
+              <div class="status-card__value" id="health-state">Checking…</div>
+              <p class="status-card__detail" id="health-detail">Waiting for the next workload probe.</p>
+            </section>
+
+            <section class="status-card">
+              <p class="eyebrow">Dataset footprint</p>
+              <h3>Live records</h3>
+              <div class="status-card__split">
+                <div>
+                  <span>Users</span>
+                  <strong id="count-users">{{ summary.counts.users }}</strong>
+                </div>
+                <div>
+                  <span>URLs</span>
+                  <strong id="count-urls">{{ summary.counts.urls }}</strong>
+                </div>
+                <div>
+                  <span>Active</span>
+                  <strong id="count-active">{{ summary.counts.active_urls }}</strong>
+                </div>
+                <div>
+                  <span>Events</span>
+                  <strong id="count-events">{{ summary.counts.events }}</strong>
+                </div>
+              </div>
+            </section>
+
+            <section class="status-card">
+              <p class="eyebrow">Recent activity</p>
+              <h3>Operational pulse</h3>
+              <div class="status-card__value" id="activity-primary">
+                {% if summary.latest_event %}
+                  {{ summary.latest_event.event_type }} recorded
+                {% else %}
+                  No recent event yet
+                {% endif %}
+              </div>
+              <p class="status-card__detail" id="activity-detail">
+                {% if summary.latest_link %}
+                  Latest link: {{ summary.latest_link.slug }}{% if summary.latest_link.title %} · {{ summary.latest_link.title }}{% endif %}
+                {% else %}
+                  No short links are available yet.
+                {% endif %}
+              </p>
+              <p class="status-card__sub" id="activity-timestamp">
+                Refreshed from the workload at {{ summary.generated_at or "startup" }}.
+              </p>
+            </section>
+
+            <section class="status-card">
+              <p class="eyebrow">Cache path</p>
+              <h3>Read-path proof</h3>
+              <div class="status-card__value" id="cache-state">
+                {% if summary.cache_mode == "redis" %}
+                  Redis active
+                {% else %}
+                  Cache bypassed
+                {% endif %}
+              </div>
+              <p class="status-card__detail" id="cache-detail">
+                The page probes <code>{{ prefix }}/urls?is_active=true</code> to confirm live reads.
+              </p>
+            </section>
+          </div>
         </aside>
       </section>
 
@@ -311,5 +414,146 @@
         </table>
       </section>
     </main>
+
+    <script>
+      const prefix = {{ prefix|tojson }};
+      const seededSummary = {{ summary|tojson }};
+      const numberFormatter = new Intl.NumberFormat();
+      const dateFormatter = new Intl.DateTimeFormat(undefined, {
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      });
+
+      function endpoint(path) {
+        return `${prefix}${path}`;
+      }
+
+      function setText(id, value) {
+        const node = document.getElementById(id);
+        if (node) {
+          node.textContent = value;
+        }
+      }
+
+      function formatDate(value) {
+        if (!value) {
+          return "just now";
+        }
+
+        const parsed = new Date(value);
+        if (Number.isNaN(parsed.getTime())) {
+          return value;
+        }
+
+        return dateFormatter.format(parsed);
+      }
+
+      function formatCount(value) {
+        return numberFormatter.format(value ?? 0);
+      }
+
+      function renderSummary(summary) {
+        if (!summary || typeof summary !== "object") {
+          return;
+        }
+
+        setText("count-users", formatCount(summary.counts?.users));
+        setText("count-urls", formatCount(summary.counts?.urls));
+        setText("count-active", formatCount(summary.counts?.active_urls));
+        setText("count-events", formatCount(summary.counts?.events));
+
+        if (summary.latest_event) {
+          setText("activity-primary", `${summary.latest_event.event_type} recorded`);
+          setText("activity-timestamp", `Latest activity at ${formatDate(summary.latest_event.timestamp)}.`);
+        } else {
+          setText("activity-primary", "No recent event yet");
+          setText("activity-timestamp", "Waiting for the first live event.");
+        }
+
+        if (summary.latest_link) {
+          const label = summary.latest_link.title
+            ? `${summary.latest_link.slug} · ${summary.latest_link.title}`
+            : summary.latest_link.slug;
+          setText("activity-detail", `Latest link: ${label}`);
+        } else {
+          setText("activity-detail", "No short links are available yet.");
+        }
+
+        setText("cache-state", summary.cache_mode === "redis" ? "Redis active" : "Cache bypassed");
+      }
+
+      function renderHealth(status, latencyMs) {
+        if (status === "ok") {
+          setText("health-state", "Running");
+          setText("health-detail", `Health endpoint responded in ${latencyMs} ms.`);
+          return;
+        }
+
+        setText("health-state", "Needs attention");
+        setText("health-detail", "The workload did not answer the latest health check.");
+      }
+
+      function renderCacheProbe(status) {
+        const normalized = (status || "bypass").toUpperCase();
+        const detailByStatus = {
+          HIT: "The latest /urls probe was served from Redis.",
+          MISS: "The latest /urls probe warmed the cache before the next read.",
+          BYPASS: "The latest /urls probe reached the app without a cache layer.",
+        };
+
+        setText("cache-detail", detailByStatus[normalized] || "Cache status is unavailable right now.");
+      }
+
+      async function refreshSummary() {
+        const response = await fetch(endpoint("/status-summary"), { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error("summary");
+        }
+
+        const summary = await response.json();
+        renderSummary(summary);
+      }
+
+      async function refreshHealth() {
+        const startedAt = performance.now();
+        const response = await fetch(endpoint("/health"), { cache: "no-store" });
+        const elapsedMs = Math.max(1, Math.round(performance.now() - startedAt));
+
+        if (!response.ok) {
+          throw new Error("health");
+        }
+
+        const payload = await response.json();
+        renderHealth(payload.status, elapsedMs);
+      }
+
+      async function refreshCacheProbe() {
+        const response = await fetch(endpoint("/urls?is_active=true"), { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error("cache");
+        }
+
+        renderCacheProbe(response.headers.get("X-Cache"));
+      }
+
+      async function refreshStatusRail() {
+        const results = await Promise.allSettled([
+          refreshSummary(),
+          refreshHealth(),
+          refreshCacheProbe(),
+        ]);
+
+        if (results.every((result) => result.status === "rejected")) {
+          renderHealth("error", 0);
+          setText("activity-timestamp", "The page could not refresh its live workload checks.");
+        }
+      }
+
+      renderSummary(seededSummary);
+      refreshStatusRail();
+      window.setInterval(refreshStatusRail, 15000);
+    </script>
   </body>
 </html>
