@@ -60,6 +60,37 @@ def test_normalize_experiment_marks_recovered_runs():
     assert normalize_experiment("networkchaos", payload)["status"] == "recovered"
 
 
+def test_normalize_experiment_captures_network_latency_details():
+    payload = {
+        "metadata": {
+            "name": "latency-run",
+            "creationTimestamp": "2026-04-04T15:10:00Z",
+            "labels": {
+                "dev2prod.io/experiment-type": "network-latency",
+                "dev2prod.io/target-name": "workload-api",
+            },
+        },
+        "spec": {
+            "duration": "60s",
+            "delay": {
+                "latency": "120ms",
+            },
+        },
+        "status": {},
+    }
+
+    assert normalize_experiment("networkchaos", payload) == {
+        "kind": "experiment",
+        "type": "network-latency",
+        "name": "latency-run",
+        "status": "pending",
+        "target": "workload-api",
+        "updatedAt": "2026-04-04T15:10:00Z",
+        "durationSeconds": 60,
+        "latencyMs": 120,
+    }
+
+
 def test_settle_experiment_status_marks_old_pod_kills_recovered():
     payload = {
         "kind": "experiment",

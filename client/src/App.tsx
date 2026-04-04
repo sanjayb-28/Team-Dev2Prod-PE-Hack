@@ -158,6 +158,24 @@ function buildResourceRows(resource: ResourceRecord | null) {
       label: 'Target',
       value: String(resource.target ?? 'Waiting for target'),
     })
+    if (typeof resource.latencyMs === 'number') {
+      rows.push({
+        label: 'Latency',
+        value: `${resource.latencyMs} ms`,
+      })
+    }
+    if (typeof resource.cpuLoad === 'number') {
+      rows.push({
+        label: 'CPU load',
+        value: `${resource.cpuLoad}%`,
+      })
+    }
+    if (typeof resource.durationSeconds === 'number') {
+      rows.push({
+        label: 'Duration',
+        value: `${resource.durationSeconds} seconds`,
+      })
+    }
   }
 
   rows.push({
@@ -184,9 +202,13 @@ function summarizeResource(resource: ResourceRecord) {
         Array.isArray(resource.ports) ? resource.ports.join(', ') : 'No ports'
       }`
     case 'experiment':
-      return `${formatStatusText(String(resource.status ?? 'unknown'))} • ${
-        resource.type ?? 'Fault run'
-      }`
+      if (resource.type === 'network-latency' && typeof resource.latencyMs === 'number') {
+        return `${resource.latencyMs} ms delay • ${formatStatusText(String(resource.status ?? 'unknown'))}`
+      }
+      if (resource.type === 'cpu-stress' && typeof resource.cpuLoad === 'number') {
+        return `${resource.cpuLoad}% load • ${formatStatusText(String(resource.status ?? 'unknown'))}`
+      }
+      return `${formatStatusText(String(resource.status ?? 'unknown'))} • ${resource.type ?? 'Fault run'}`
     default:
       return formatStatusText(String(resource.status ?? 'unknown'))
   }

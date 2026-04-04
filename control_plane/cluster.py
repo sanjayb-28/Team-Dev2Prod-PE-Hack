@@ -145,6 +145,7 @@ def normalize_experiment(kind: str, item: dict) -> dict:
     labels = metadata.get("labels", {})
     experiment_status = status.get("experiment", {})
     container_records = experiment_status.get("containerRecords", [])
+    spec = item.get("spec", {})
     phases = {
         str(record.get("phase", "")).strip().lower()
         for record in container_records
@@ -163,10 +164,12 @@ def normalize_experiment(kind: str, item: dict) -> dict:
         normalized_status = "running"
     elif conditions.get("Selected") or conditions.get("AllInjected"):
         normalized_status = "pending"
+    elif metadata.get("creationTimestamp"):
+        normalized_status = "pending"
     else:
         normalized_status = "unknown"
 
-    return {
+    normalized: dict = {
         "kind": "experiment",
         "type": labels.get("dev2prod.io/experiment-type", kind),
         "name": metadata.get("name"),
@@ -175,6 +178,22 @@ def normalize_experiment(kind: str, item: dict) -> dict:
         or labels.get("app.kubernetes.io/name"),
         "updatedAt": metadata.get("creationTimestamp"),
     }
+
+    duration = spec.get("duration")
+    if isinstance(duration, str) and duration.endswith("s") and duration[:-1].isdigit():
+        normalized["durationSeconds"] = int(duration[:-1])
+
+    if normalized["type"] == "network-latency":
+        latency = spec.get("delay", {}).get("latency")
+        if isinstance(latency, str) and latency.endswith("ms") and latency[:-2].isdigit():
+            normalized["latencyMs"] = int(latency[:-2])
+
+    if normalized["type"] == "cpu-stress":
+        load = spec.get("stressors", {}).get("cpu", {}).get("load")
+        if isinstance(load, int):
+            normalized["cpuLoad"] = load
+
+    return normalized
 
 
 def settle_experiment_status(experiment: dict, active_pod_names: set[str]) -> dict:
