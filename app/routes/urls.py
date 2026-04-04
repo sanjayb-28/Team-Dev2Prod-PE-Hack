@@ -256,7 +256,7 @@ def update_url(url_id):
         title_error = validate_title(payload.get("title"))
         if title_error:
             return error_response("validation_failed", title_error, 422)
-        link.title = payload["title"].strip()
+        link.title = payload["title"].strip() if payload["title"] is not None else None
 
     if "is_active" in payload:
         if not isinstance(payload["is_active"], bool):

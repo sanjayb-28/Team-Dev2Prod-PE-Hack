@@ -133,6 +133,8 @@ def create_event():
     link = get_link_or_none(payload["url_id"])
     if link is None:
         return error_response("not_found", "We could not find that URL.", 404)
+    if not link.is_active:
+        return error_response("validation_failed", "Choose an active URL.", 422)
 
     user_id = payload.get("user_id")
     if user_id is not None and not User.select().where(User.id == user_id).exists():

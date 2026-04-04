@@ -133,6 +133,26 @@ def test_create_event_rejects_non_object_details(client):
     assert response.get_json()["error"]["message"] == "details must be a JSON object."
 
 
+def test_create_event_rejects_inactive_url(client):
+    create_user(1)
+    link = create_link(1)
+    link.is_active = False
+    link.save()
+
+    response = client.post(
+        "/events",
+        json={
+            "url_id": link.id,
+            "user_id": 1,
+            "event_type": "click",
+            "details": {"referrer": "https://google.com"},
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.get_json()["error"]["message"] == "Choose an active URL."
+
+
 def test_list_events_includes_deleted_url_activity(client):
     create_user(1)
     link = create_link(1, slug="delete-event")
