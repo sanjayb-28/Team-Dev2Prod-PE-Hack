@@ -1,7 +1,8 @@
 import csv
+from datetime import UTC, datetime
 
-from app.models import Link
-from app.services import import_urls_csv
+from app.models import Link, User
+from app.services import import_urls_csv, import_users_csv
 
 
 def write_urls_csv(path, rows):
@@ -21,6 +22,93 @@ def write_urls_csv(path, rows):
         )
         writer.writeheader()
         writer.writerows(rows)
+
+
+def write_users_csv(path, rows):
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=["id", "username", "email", "created_at"],
+        )
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def test_import_users_csv_creates_users(app, tmp_path):
+    csv_path = tmp_path / "users.csv"
+    write_users_csv(
+        csv_path,
+        [
+            {
+                "id": "1",
+                "username": "navyjourney21",
+                "email": "navyjourney21@seeded.app",
+                "created_at": "2024-04-12 11:11:33",
+            }
+        ],
+    )
+
+    summary = import_users_csv(csv_path)
+
+    assert summary == {"created": 1, "updated": 0, "total": 1}
+    user = User.get_by_id(1)
+    assert user.username == "navyjourney21"
+    assert user.email == "navyjourney21@seeded.app"
+
+
+def test_import_users_csv_updates_existing_users(app, tmp_path):
+    User.create(
+        id=4,
+        username="oldname",
+        email="old@example.com",
+        created_at=datetime(2024, 1, 1, tzinfo=UTC),
+    )
+
+    csv_path = tmp_path / "users.csv"
+    write_users_csv(
+        csv_path,
+        [
+            {
+                "id": "4",
+                "username": "freshname",
+                "email": "fresh@example.com",
+                "created_at": "2024-04-12 11:11:33",
+            }
+        ],
+    )
+
+    summary = import_users_csv(csv_path)
+
+    assert summary == {"created": 0, "updated": 1, "total": 1}
+    user = User.get_by_id(4)
+    assert user.username == "freshname"
+    assert user.email == "fresh@example.com"
+
+
+def test_import_users_csv_allows_repeated_usernames(app, tmp_path):
+    csv_path = tmp_path / "users.csv"
+    write_users_csv(
+        csv_path,
+        [
+            {
+                "id": "7",
+                "username": "sharedname",
+                "email": "shared-one@example.com",
+                "created_at": "2024-04-12 11:11:33",
+            },
+            {
+                "id": "8",
+                "username": "sharedname",
+                "email": "shared-two@example.com",
+                "created_at": "2024-04-12 11:11:33",
+            },
+        ],
+    )
+
+    summary = import_users_csv(csv_path)
+
+    assert summary == {"created": 2, "updated": 0, "total": 2}
+    assert User.select().where(User.username == "sharedname").count() == 2
 
 
 def test_import_urls_csv_creates_links(app, tmp_path):
