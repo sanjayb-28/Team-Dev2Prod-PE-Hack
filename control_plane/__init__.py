@@ -1,5 +1,6 @@
 import json
 import os
+import time
 from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
 
@@ -159,14 +160,24 @@ def create_app() -> Flask:
 
     @app.get("/api/stream")
     def stream():
+        one_shot = request.args.get("once") == "1"
+        interval_seconds = float(os.environ.get("CONTROL_PLANE_STREAM_INTERVAL_SECONDS", "3"))
+
         def generate():
-            yield serialize_sse(
-                "cluster_snapshot",
-                {
-                    "status": build_status_payload(app),
-                    "resources": list_namespace_resources(app.config),
-                },
-            )
+            while True:
+                yield serialize_sse(
+                    "cluster_snapshot",
+                    {
+                        "status": build_status_payload(app),
+                        "resources": list_namespace_resources(app.config),
+                    },
+                )
+
+                if one_shot:
+                    break
+
+                yield ": keep-alive\n\n"
+                time.sleep(interval_seconds)
 
         return Response(generate(), mimetype="text/event-stream")
 
