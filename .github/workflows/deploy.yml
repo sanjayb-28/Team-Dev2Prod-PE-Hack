@@ -128,6 +128,20 @@ jobs:
             --dry-run=client \
             -o yaml | kubectl apply -f -
 
+      - name: Apply client tls secret
+        run: |
+          cat > "$RUNNER_TEMP/client-tls.crt" <<'EOF'
+          ${{ secrets.CLIENT_TLS_CERT }}
+          EOF
+          cat > "$RUNNER_TEMP/client-tls.key" <<'EOF'
+          ${{ secrets.CLIENT_TLS_KEY }}
+          EOF
+          kubectl -n "$DO_NAMESPACE" create secret tls client-tls \
+            --cert="$RUNNER_TEMP/client-tls.crt" \
+            --key="$RUNNER_TEMP/client-tls.key" \
+            --dry-run=client \
+            -o yaml | kubectl apply -f -
+
       - name: Render manifests
         run: |
           mkdir -p "$RUNNER_TEMP/digitalocean-k8s"

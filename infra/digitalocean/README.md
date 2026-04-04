@@ -15,6 +15,8 @@ The client container proxies `/api/*` to the in-cluster control plane, so the br
 - A DigitalOcean Container Registry linked to that cluster
 - A GitHub Actions secret named `DIGITALOCEAN_ACCESS_TOKEN`
 - A GitHub Actions secret named `WORKLOAD_DATABASE_URL`
+- A GitHub Actions secret named `CLIENT_TLS_CERT`
+- A GitHub Actions secret named `CLIENT_TLS_KEY`
 
 The deploy workflow currently uses the fixed production names already provisioned in DigitalOcean:
 
@@ -33,3 +35,4 @@ The deploy workflow currently uses the fixed production names already provisione
 
 - `CHAOS_MESH_ENABLED` is `false` by default. Turn it on after Chaos Mesh is installed in the cluster.
 - The control plane uses namespace-scoped RBAC and reads pod logs through `pods/log`.
+- After deploying the TLS-enabled client, set Cloudflare SSL mode to `Full (strict)`.

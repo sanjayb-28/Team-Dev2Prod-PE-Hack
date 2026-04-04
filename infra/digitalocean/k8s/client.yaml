@@ -3,6 +3,10 @@ kind: Deployment
 metadata:
   name: client
   namespace: dev2prod
+  annotations:
+    service.beta.kubernetes.io/do-loadbalancer-tls-ports: "443"
+    service.beta.kubernetes.io/do-loadbalancer-tls-passthrough: "true"
+    service.beta.kubernetes.io/do-loadbalancer-type: "REGIONAL_NETWORK"
   labels:
     app.kubernetes.io/name: client
 spec:
@@ -17,13 +21,24 @@ spec:
     spec:
       imagePullSecrets:
         - name: do-registry
+      volumes:
+        - name: client-tls
+          secret:
+            secretName: client-tls
+            optional: true
       containers:
         - name: client
           image: __CLIENT_IMAGE__
           imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: client-tls
+              mountPath: /etc/nginx/tls
+              readOnly: true
           ports:
             - containerPort: 80
               name: http
+            - containerPort: 443
+              name: https
           readinessProbe:
             httpGet:
               path: /
@@ -57,3 +72,6 @@ spec:
     - port: 80
       targetPort: http
       name: http
+    - port: 443
+      targetPort: https
+      name: https
