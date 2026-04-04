@@ -2,6 +2,8 @@ from datetime import UTC, datetime
 from io import BytesIO
 
 from app.models import Event, Link, User
+from app.routes import users as users_routes
+from peewee import IntegrityError
 
 
 def create_user(user_id, username, email, created_at=None):
@@ -128,6 +130,38 @@ def test_create_user_reuses_existing_email_with_requested_username(client):
     assert payload["username"] == "testuser_create"
     assert payload["email"] == "testuser_create@example.com"
     assert User.get_by_id(1).username == "testuser_create"
+
+
+def test_create_user_recovers_from_insert_conflict(client, monkeypatch):
+    existing_user = create_user(1, "old_name", "testuser_create@example.com")
+    email_checks = iter([None, existing_user])
+
+    def fake_get_existing_user_by_email(email):
+        return next(email_checks)
+
+    def fake_create(**kwargs):
+        raise IntegrityError()
+
+    monkeypatch.setattr(
+        users_routes,
+        "get_existing_user_by_email",
+        fake_get_existing_user_by_email,
+    )
+    monkeypatch.setattr(users_routes.User, "create", fake_create)
+
+    response = client.post(
+        "/users",
+        json={
+            "username": "testuser_create",
+            "email": "testuser_create@example.com",
+        },
+    )
+
+    assert response.status_code == 201
+    payload = response.get_json()
+    assert payload["id"] == 1
+    assert payload["username"] == "testuser_create"
+    assert payload["email"] == "testuser_create@example.com"
 
 
 def test_create_user_rejects_invalid_schema(client):

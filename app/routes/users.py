@@ -66,6 +66,29 @@ def get_user_or_none(user_id):
         return None
 
 
+def reuse_user_for_create(normalized_username, normalized_email):
+    existing_user = get_existing_user_by_email(normalized_email)
+    if existing_user is None:
+        return error_response("conflict", "That email is already in use.", 409)
+
+    if existing_user.username.strip().casefold() == normalized_username.casefold():
+        if existing_user.username != normalized_username:
+            existing_user.username = normalized_username
+            existing_user.save()
+        return jsonify(serialize_user(existing_user)), 201
+
+    username_owner = get_existing_user_by_username(
+        normalized_username,
+        exclude_user_id=existing_user.id,
+    )
+    if username_owner is not None:
+        return error_response("conflict", "That username is already in use.", 409)
+
+    existing_user.username = normalized_username
+    existing_user.save()
+    return jsonify(serialize_user(existing_user)), 201
+
+
 @users_bp.get("/users")
 def list_users():
     users = User.select().order_by(User.id)
@@ -124,22 +147,7 @@ def create_user():
     normalized_email = payload["email"].strip().lower()
     existing_user = get_existing_user_by_email(normalized_email)
     if existing_user is not None:
-        if existing_user.username.strip().casefold() == normalized_username.casefold():
-            if existing_user.username != normalized_username:
-                existing_user.username = normalized_username
-                existing_user.save()
-            return jsonify(serialize_user(existing_user)), 201
-
-        username_owner = get_existing_user_by_username(
-            normalized_username,
-            exclude_user_id=existing_user.id,
-        )
-        if username_owner is not None:
-            return error_response("conflict", "That username is already in use.", 409)
-
-        existing_user.username = normalized_username
-        existing_user.save()
-        return jsonify(serialize_user(existing_user)), 201
+        return reuse_user_for_create(normalized_username, normalized_email)
 
     username_owner = get_existing_user_by_username(normalized_username)
     if username_owner is not None:
@@ -151,7 +159,7 @@ def create_user():
             email=normalized_email,
         )
     except IntegrityError:
-        return error_response("conflict", "That email is already in use.", 409)
+        return reuse_user_for_create(normalized_username, normalized_email)
 
     return jsonify(serialize_user(user)), 201
 
