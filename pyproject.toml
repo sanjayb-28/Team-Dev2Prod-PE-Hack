@@ -19,3 +19,6 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "--cov=app --cov-report=term-missing --cov-fail-under=50"
+markers = [
+    "integration: end-to-end API flows that verify database side effects",
+]
