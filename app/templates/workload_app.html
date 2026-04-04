@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dev2Prod Shortener</title>
+    <style>
+      :root {
+        color: #16233a;
+        background: #f6f3ed;
+        font-family:
+          "Neue Haas Grotesk Display",
+          "Avenir Next",
+          "Segoe UI Variable Text",
+          "Segoe UI",
+          sans-serif;
+        --page: #f6f3ed;
+        --surface: #fffdf8;
+        --line: #d7d2c8;
+        --muted: #5f6978;
+        --blue: #326de6;
+        --teal: #15736b;
+        --shadow: 0 24px 50px rgba(22, 35, 58, 0.08);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-width: 320px;
+        background:
+          radial-gradient(circle at top right, rgba(50, 109, 230, 0.08), transparent 24rem),
+          radial-gradient(circle at bottom left, rgba(21, 115, 107, 0.08), transparent 24rem),
+          var(--page);
+        color: #16233a;
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      .page {
+        width: min(1100px, calc(100% - 2rem));
+        margin: 0 auto;
+        padding: 1.3rem 0 2rem;
+      }
+
+      .hero,
+      .surface {
+        border: 1px solid var(--line);
+        background: var(--surface);
+        box-shadow: var(--shadow);
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.15fr) minmax(18rem, 0.85fr);
+        gap: 2rem;
+        padding: 1.6rem;
+      }
+
+      .hero__copy {
+        display: grid;
+        gap: 0.95rem;
+        align-content: start;
+      }
+
+      .eyebrow,
+      .metric dt,
+      .table__meta {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.74rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      h1,
+      h2 {
+        margin: 0;
+        letter-spacing: -0.045em;
+      }
+
+      h1 {
+        font-size: clamp(2.6rem, 5vw, 4.8rem);
+        line-height: 0.92;
+        max-width: 10ch;
+      }
+
+      .hero__copy strong {
+        color: var(--blue);
+        font-weight: 620;
+      }
+
+      .hero__intro,
+      .surface p,
+      .metric dd,
+      .table td,
+      .quick-links a {
+        color: var(--muted);
+      }
+
+      .hero__intro {
+        margin: 0;
+        max-width: 35rem;
+        font-size: 1.05rem;
+      }
+
+      .quick-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+      }
+
+      .quick-links a {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 2.85rem;
+        padding: 0 1rem;
+        border: 1px solid var(--line);
+        background: #fffefb;
+        transition:
+          border-color 160ms ease,
+          background-color 160ms ease,
+          color 160ms ease;
+      }
+
+      .quick-links a:hover {
+        border-color: rgba(50, 109, 230, 0.22);
+        background: #f3f7ff;
+        color: #24478f;
+      }
+
+      .hero__rail {
+        display: grid;
+        gap: 0.9rem;
+        align-content: start;
+      }
+
+      .metric {
+        margin: 0;
+        display: grid;
+        gap: 0.8rem;
+      }
+
+      .metric > div {
+        padding: 0.95rem 1rem;
+        border-top: 1px solid rgba(22, 35, 58, 0.1);
+      }
+
+      .metric dd {
+        margin: 0.3rem 0 0;
+        font-size: 1.05rem;
+        line-height: 1.35;
+      }
+
+      .metric dd strong {
+        color: var(--teal);
+      }
+
+      .surface {
+        margin-top: 1rem;
+        padding: 1.4rem 1.6rem 1.6rem;
+      }
+
+      .surface__header {
+        display: grid;
+        gap: 0.55rem;
+        margin-bottom: 1rem;
+      }
+
+      .surface__header h2 {
+        font-size: clamp(1.8rem, 3vw, 2.6rem);
+        line-height: 0.98;
+      }
+
+      .table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      .table th,
+      .table td {
+        padding: 0.9rem 0;
+        border-top: 1px solid var(--line);
+        text-align: left;
+        vertical-align: top;
+      }
+
+      .table th {
+        color: #16233a;
+        font-size: 0.86rem;
+      }
+
+      .table td strong {
+        display: block;
+        color: #16233a;
+        font-size: 0.98rem;
+      }
+
+      .table__meta {
+        display: inline-block;
+        margin-top: 0.28rem;
+      }
+
+      .table__target {
+        word-break: break-word;
+      }
+
+      .table__open {
+        color: var(--blue);
+      }
+
+      .table__open:hover {
+        color: #24478f;
+      }
+
+      @media (max-width: 860px) {
+        .page {
+          width: min(100%, calc(100% - 1rem));
+          padding-top: 0.8rem;
+        }
+
+        .hero,
+        .surface {
+          padding: 1.2rem;
+        }
+
+        .hero {
+          grid-template-columns: 1fr;
+        }
+
+        .table {
+          display: block;
+          overflow-x: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero">
+        <div class="hero__copy">
+          <p class="eyebrow">Workload</p>
+          <h1>Short links running in the live cluster.</h1>
+          <p class="hero__intro">
+            This is the browser-facing workload surface. If this page loads, the URL shortener
+            is up and responding inside the cluster.
+          </p>
+          <div class="quick-links">
+            <a href="{{ prefix }}/health">View health</a>
+            <a href="{{ prefix }}/urls">Browse URLs JSON</a>
+            <a href="{{ prefix }}/events">Browse events JSON</a>
+          </div>
+        </div>
+
+        <aside class="hero__rail" aria-label="Workload status">
+          <dl class="metric">
+            <div>
+              <dt>Status</dt>
+              <dd><strong>Running</strong> and serving live data</dd>
+            </div>
+            <div>
+              <dt>Public path</dt>
+              <dd>{{ prefix or "/" }}</dd>
+            </div>
+            <div>
+              <dt>Proof</dt>
+              <dd>Open any short code below or the health endpoint to confirm the service is live.</dd>
+            </div>
+          </dl>
+        </aside>
+      </section>
+
+      <section class="surface">
+        <div class="surface__header">
+          <p class="eyebrow">Recent URLs</p>
+          <h2>Seeded links available in the workload.</h2>
+          <p>Use these live rows to prove the app is serving data and resolving short codes.</p>
+        </div>
+
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Short code</th>
+              <th>Target</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for link in links %}
+              <tr>
+                <td>
+                  <strong>{{ link.slug }}</strong>
+                  <a class="table__open" href="{{ prefix }}/{{ link.slug }}">Open short link</a>
+                </td>
+                <td class="table__target">
+                  {{ link.target_url }}
+                  {% if link.title %}
+                    <span class="table__meta">{{ link.title }}</span>
+                  {% endif %}
+                </td>
+                <td>{{ "Active" if link.is_active else "Inactive" }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </section>
+    </main>
+  </body>
+</html>
