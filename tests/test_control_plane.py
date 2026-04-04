@@ -217,3 +217,14 @@ def test_stream_returns_cluster_snapshot(monkeypatch):
     assert response.mimetype == "text/event-stream"
     assert "event: cluster_snapshot" in body
     assert '"status": {"clusterName": "dev2prod-local"' in body
+
+
+def test_control_plane_adds_client_origin_header(monkeypatch):
+    monkeypatch.setenv("CONTROL_PLANE_ALLOWED_ORIGIN", "http://127.0.0.1:5173")
+
+    app = create_app()
+
+    with app.test_client() as client:
+        response = client.get("/api/resources")
+
+    assert response.headers["Access-Control-Allow-Origin"] == "http://127.0.0.1:5173"

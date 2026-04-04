@@ -1,0 +1,12 @@
+.agents/
+.git/
+.github/
+.pytest_cache/
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+client/node_modules/
+client/dist/
+client/.vite/
+judging/

@@ -65,8 +65,18 @@ def create_app() -> Flask:
             "CONTROL_PLANE_DEPLOYMENT_NAME",
             "control-plane",
         ),
+        CONTROL_PLANE_ALLOWED_ORIGIN=os.environ.get("CONTROL_PLANE_ALLOWED_ORIGIN"),
         CHAOS_MESH_ENABLED=read_flag("CHAOS_MESH_ENABLED"),
     )
+
+    @app.after_request
+    def add_cors_headers(response):
+        allowed_origin = app.config["CONTROL_PLANE_ALLOWED_ORIGIN"]
+        if allowed_origin:
+            response.headers["Access-Control-Allow-Origin"] = allowed_origin
+            response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+            response.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
+        return response
 
     @app.get("/health")
     def health():
