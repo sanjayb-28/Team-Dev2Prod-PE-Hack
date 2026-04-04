@@ -12,4 +12,4 @@ COPY control_plane control_plane
 COPY run.py run_control_plane.py ./
 COPY scripts scripts
 
-CMD ["uv", "run", "python", "run.py"]
+CMD ["uv", "run", "gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--threads", "4", "--timeout", "60", "run:app"]

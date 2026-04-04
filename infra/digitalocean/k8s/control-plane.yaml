@@ -22,7 +22,21 @@ spec:
         - name: control-plane
           image: __BACKEND_IMAGE__
           imagePullPolicy: IfNotPresent
-          command: ["uv", "run", "python", "run_control_plane.py"]
+          command:
+            [
+              "uv",
+              "run",
+              "gunicorn",
+              "--bind",
+              "0.0.0.0:8000",
+              "--workers",
+              "2",
+              "--threads",
+              "4",
+              "--timeout",
+              "60",
+              "run_control_plane:app",
+            ]
           envFrom:
             - configMapRef:
                 name: platform-config

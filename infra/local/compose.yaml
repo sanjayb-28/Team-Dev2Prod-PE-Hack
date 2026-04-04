@@ -18,7 +18,6 @@ services:
   workload-api:
     build:
       context: ../..
-    command: ["uv", "run", "python", "run.py"]
     environment:
       APP_HOST: 0.0.0.0
       APP_PORT: 5000
@@ -32,7 +31,21 @@ services:
   control-plane:
     build:
       context: ../..
-    command: ["uv", "run", "python", "run_control_plane.py"]
+    command:
+      [
+        "uv",
+        "run",
+        "gunicorn",
+        "--bind",
+        "0.0.0.0:8000",
+        "--workers",
+        "2",
+        "--threads",
+        "4",
+        "--timeout",
+        "60",
+        "run_control_plane:app",
+      ]
     environment:
       APP_HOST: 0.0.0.0
       CONTROL_PLANE_PORT: 8000
