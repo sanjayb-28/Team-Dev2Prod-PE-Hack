@@ -109,6 +109,14 @@ export default function HomePage({ onNavigate }: HomePageProps) {
             >
               View observability
             </button>
+            <a
+              className="button"
+              href="/shortener/"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Open shortener
+            </a>
           </div>
         </div>
 
