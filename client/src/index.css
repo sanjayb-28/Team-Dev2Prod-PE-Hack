@@ -24,6 +24,7 @@
   --accent-soft: #d8efeb;
   --k8s-blue: #326de6;
   --k8s-blue-soft: #e8efff;
+  --pane-pad: 1.35rem;
   --warm: #d86a3d;
   --warm-soft: #f4ded2;
   --good: #17714f;
@@ -775,7 +776,11 @@ button:disabled {
 }
 
 .pane__header {
-  padding: 1.35rem 1.35rem 1.15rem;
+  display: grid;
+  align-content: start;
+  gap: 0.45rem;
+  min-height: 8.9rem;
+  padding: 1.35rem var(--pane-pad) 1.15rem;
   border-bottom: 1px solid var(--line);
 }
 
@@ -787,7 +792,7 @@ button:disabled {
   display: flex;
   flex-wrap: wrap;
   gap: 0.55rem;
-  padding: 1rem 1.35rem 0;
+  padding: 1rem var(--pane-pad) 0;
 }
 
 .tab {
@@ -810,7 +815,7 @@ button:disabled {
 }
 
 .search {
-  padding: 1.2rem 1.35rem 0;
+  padding: 1.05rem var(--pane-pad) 0;
   display: grid;
   gap: 0.55rem;
 }
@@ -830,7 +835,7 @@ button:disabled {
 
 .resource-list {
   flex: 1;
-  padding: 1rem 1.35rem 1.35rem;
+  padding: 1rem var(--pane-pad) var(--pane-pad);
   display: grid;
   gap: 0.75rem;
   align-content: start;
@@ -867,7 +872,7 @@ button:disabled {
 
 .detail-grid {
   margin: 0;
-  padding: 1.35rem;
+  padding: 1.1rem var(--pane-pad) 0.9rem;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.95rem;
@@ -884,7 +889,7 @@ button:disabled {
 }
 
 .detail-events {
-  padding: 0 1.35rem 1.35rem;
+  padding: 0 var(--pane-pad) var(--pane-pad);
   display: grid;
   gap: 1rem;
 }
@@ -951,11 +956,11 @@ button:disabled {
 .action-list {
   display: grid;
   gap: 0.75rem;
-  padding: 0 1.35rem 1.35rem;
+  padding: 0 var(--pane-pad) var(--pane-pad);
 }
 
 .rollout-watch {
-  padding: 0 1.35rem 1.35rem;
+  padding: 0 var(--pane-pad) var(--pane-pad);
   display: grid;
   gap: 0.85rem;
 }
@@ -1003,14 +1008,14 @@ button:disabled {
 }
 
 .action-list__secondary {
-  margin: 0 1.35rem 1.35rem;
+  margin: 0 var(--pane-pad) var(--pane-pad);
   padding: 0.9rem 1rem;
   background: #fffefb;
   text-align: left;
 }
 
 .message {
-  margin: 0 1.35rem 1.35rem;
+  margin: 0 var(--pane-pad) var(--pane-pad);
   padding: 1rem;
   border: 1px solid var(--line);
   background: #fffefb;
@@ -1131,6 +1136,10 @@ button:disabled {
   .action-list {
     padding-left: 1rem;
     padding-right: 1rem;
+  }
+
+  .pane__header {
+    min-height: auto;
   }
 
   .action-list__secondary,
