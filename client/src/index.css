@@ -22,6 +22,8 @@
   --line-strong: #b7b4ab;
   --accent: #15736b;
   --accent-soft: #d8efeb;
+  --k8s-blue: #326de6;
+  --k8s-blue-soft: #e8efff;
   --warm: #d86a3d;
   --warm-soft: #f4ded2;
   --good: #17714f;
@@ -170,6 +172,7 @@ button:disabled {
 .signal__label,
 .search__label,
 .detail-grid dt,
+.workspace-offline__grid dt,
 .rollout-watch__grid dt,
 .status-strip dt {
   margin: 0;
@@ -191,8 +194,8 @@ button:disabled {
 .pane__header h2,
 .detail-events__header h3 {
   margin: 0;
-  font-weight: 650;
-  color: var(--ink);
+  font-weight: 620;
+  color: #1b2840;
 }
 
 .section-heading p,
@@ -271,8 +274,8 @@ button:disabled {
   padding: 2.4rem;
   min-height: 34rem;
   background:
-    radial-gradient(circle at top right, rgba(69, 105, 212, 0.1), transparent 18rem),
-    radial-gradient(circle at bottom left, rgba(21, 115, 107, 0.12), transparent 18rem),
+    radial-gradient(circle at top right, rgba(50, 109, 230, 0.08), transparent 18rem),
+    radial-gradient(circle at bottom left, rgba(21, 115, 107, 0.08), transparent 18rem),
     #fff8f1;
 }
 
@@ -286,10 +289,10 @@ button:disabled {
   display: grid;
   gap: 0.18em;
   margin: 0;
-  font-size: clamp(3.3rem, 7vw, 7.1rem);
-  line-height: 0.88;
+  font-size: clamp(2.9rem, 6vw, 5.8rem);
+  line-height: 0.92;
   letter-spacing: -0.055em;
-  max-width: 10.5ch;
+  max-width: 11ch;
 }
 
 .landing-hero__headline span {
@@ -297,17 +300,7 @@ button:disabled {
 }
 
 .landing-hero__headline-fill {
-  background-image:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0)),
-    url('/k8s.svg');
-  background-size: cover, 165%;
-  background-position: center center, center center;
-  background-repeat: no-repeat, no-repeat;
-  color: transparent;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  -webkit-background-clip: text;
-  filter: saturate(1.05) contrast(1.02);
+  color: var(--k8s-blue);
 }
 
 .landing-hero__intro {
@@ -568,9 +561,9 @@ button:disabled {
 }
 
 .surface-page__hero h1 {
-  font-size: clamp(2.4rem, 4.6vw, 4.5rem);
-  line-height: 0.98;
-  max-width: 11ch;
+  font-size: clamp(2rem, 3.9vw, 3.45rem);
+  line-height: 1;
+  max-width: 12ch;
 }
 
 .surface-page__summary {
@@ -603,9 +596,9 @@ button:disabled {
 }
 
 .workspace-masthead h1 {
-  font-size: clamp(2.5rem, 4.6vw, 4.4rem);
-  line-height: 0.94;
-  max-width: 10ch;
+  font-size: clamp(2.1rem, 4vw, 3.5rem);
+  line-height: 0.98;
+  max-width: 11ch;
 }
 
 .workspace-masthead__scope {
@@ -712,6 +705,58 @@ button:disabled {
   display: grid;
   grid-template-columns: minmax(17rem, 20rem) minmax(0, 1fr) minmax(18rem, 22rem);
   min-height: 48rem;
+}
+
+.workspace-offline {
+  min-height: 32rem;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  padding: 1.6rem;
+}
+
+.workspace-offline__panel {
+  display: grid;
+  gap: 1rem;
+  max-width: 52rem;
+}
+
+.workspace-offline__panel h2 {
+  margin: 0;
+  font-size: clamp(2rem, 3.8vw, 3.3rem);
+  line-height: 1;
+  letter-spacing: -0.045em;
+  color: #1b2840;
+}
+
+.workspace-offline__copy {
+  margin: 0;
+  max-width: 40rem;
+  color: var(--muted);
+}
+
+.workspace-offline__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  margin-top: 0.2rem;
+}
+
+.workspace-offline__grid {
+  margin: 0.5rem 0 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.95rem;
+}
+
+.workspace-offline__grid div {
+  padding-top: 0.95rem;
+  border-top: 1px solid var(--line);
+}
+
+.workspace-offline__grid dd {
+  margin: 0.35rem 0 0;
+  color: var(--muted);
 }
 
 .pane {
@@ -1016,7 +1061,8 @@ button:disabled {
   .capability-grid,
   .detail-columns,
   .surface-page__grid,
-  .workspace-overview {
+  .workspace-overview,
+  .workspace-offline__grid {
     grid-template-columns: 1fr;
   }
 
@@ -1049,7 +1095,8 @@ button:disabled {
   .landing-detail,
   .surface-page__hero,
   .surface-page__grid,
-  .workspace-masthead {
+  .workspace-masthead,
+  .workspace-offline {
     padding: 1.2rem;
   }
 
@@ -1068,7 +1115,7 @@ button:disabled {
   }
 
   .landing-hero__headline {
-    max-width: 11ch;
+    max-width: 12ch;
   }
 
   .landing-hero__facts {

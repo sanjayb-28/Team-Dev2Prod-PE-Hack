@@ -638,6 +638,7 @@ export default function WorkspacePage() {
   const workloadLabel = clusterStatus?.workloadScope.deploymentName ?? 'the workload'
   const inspectorNotice = buildInspectorNotice(displayedResource, clusterStatus)
   const rolloutWatch = buildRolloutWatch(resourceSnapshot, clusterStatus, displayedResource)
+  const showDisconnectedWorkspace = pageState === 'error' && !resourceSnapshot
 
   async function handleRunExperiment(type: ExperimentTypeName) {
     if (!displayedResource || !canTargetFaults) {
@@ -788,6 +789,45 @@ export default function WorkspacePage() {
         </article>
       </section>
 
+      {showDisconnectedWorkspace ? (
+        <main className="workspace-offline">
+          <section className="workspace-offline__panel">
+            <p className="pane__eyebrow">Connection</p>
+            <h2>Workspace is waiting for the live control plane.</h2>
+            <p className="workspace-offline__copy">
+              The operating surface could not load the cluster right now. When the
+              connection returns, resources, actions, and recovery details will appear here.
+            </p>
+
+            <div className="workspace-offline__actions">
+              <button
+                type="button"
+                className="button button--primary"
+                onClick={() => {
+                  void refreshSnapshot()
+                }}
+              >
+                Retry connection
+              </button>
+            </div>
+
+            <dl className="workspace-offline__grid">
+              <div>
+                <dt>Control plane</dt>
+                <dd>Needs to answer the workspace status and resource requests.</dd>
+              </div>
+              <div>
+                <dt>Workload</dt>
+                <dd>The locked service should be reachable again before faults are started.</dd>
+              </div>
+              <div>
+                <dt>Next step</dt>
+                <dd>Retry once the environment is back, then the workspace will repopulate.</dd>
+              </div>
+            </dl>
+          </section>
+        </main>
+      ) : (
       <main className="workspace-grid">
         <aside className="pane pane--navigation">
           <div className="pane__header">
@@ -876,11 +916,7 @@ export default function WorkspacePage() {
             </p>
           </div>
 
-          {pageState === 'error' ? (
-            <div className="message message--error">
-              The client could not reach the control plane. Start the workload and control-plane services, then refresh.
-            </div>
-          ) : displayedResource ? (
+          {displayedResource ? (
             <>
               <dl className="detail-grid">
                 {buildResourceRows(displayedResource).map((row) => (
@@ -1045,6 +1081,7 @@ export default function WorkspacePage() {
           </section>
         </aside>
       </main>
+      )}
     </div>
   )
 }
