@@ -352,6 +352,25 @@ def test_create_url_rejects_overlong_short_code(client):
     assert response.get_json()["error"]["message"] == "short_code must be 32 characters or fewer."
 
 
+def test_create_url_allows_null_title(client):
+    create_user(1)
+
+    response = client.post(
+        "/urls",
+        json={
+            "user_id": 1,
+            "original_url": "https://example.com/test",
+            "title": None,
+        },
+    )
+
+    assert response.status_code == 201
+    payload = response.get_json()
+    assert payload["user_id"] == 1
+    assert payload["original_url"] == "https://example.com/test"
+    assert payload["title"] is None
+
+
 def test_create_url_regenerates_when_generated_short_code_is_taken(client, monkeypatch):
     create_user(1)
     create_link(1, slug="taken1")

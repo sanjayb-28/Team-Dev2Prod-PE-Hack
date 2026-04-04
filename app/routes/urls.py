@@ -220,7 +220,8 @@ def create_url():
     if url_error:
         return error_response("validation_failed", url_error, 422)
 
-    title_error = validate_title(payload.get("title"))
+    raw_title = payload.get("title")
+    title_error = validate_title(raw_title)
     if title_error:
         return error_response("validation_failed", title_error, 422)
 
@@ -234,7 +235,7 @@ def create_url():
     else:
         short_code = generate_short_code()
 
-    title = payload.get("title").strip() if payload.get("title", "").strip() else None
+    title = raw_title.strip() if isinstance(raw_title, str) and raw_title.strip() else None
     link = None
     for _ in range(6):
         try:
