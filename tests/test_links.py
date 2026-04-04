@@ -97,7 +97,7 @@ def test_resolve_link_rejects_inactive_links(client):
 
     response = client.get("/quiet-room", follow_redirects=False)
 
-    assert response.status_code == 410
+    assert response.status_code == 404
     error = response.get_json()["error"]
     assert error["code"] == "inactive_link"
     assert error["message"] == "This link is inactive."
@@ -118,7 +118,7 @@ def test_resolve_link_does_not_record_activity_for_inactive_links(client):
 
     response = client.get("/sleeping-guide", follow_redirects=False)
 
-    assert response.status_code == 410
+    assert response.status_code == 404
     link = Link.get(Link.slug == "sleeping-guide")
     assert link.visit_count == initial_visit_count
     assert Event.select().where(Event.link == link).count() == initial_event_count
