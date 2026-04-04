@@ -54,7 +54,7 @@ jobs:
           echo "CLIENT_IMAGE=registry.digitalocean.com/${{ secrets.DOCR_REGISTRY }}/${CLIENT_REPOSITORY}:$SHORT_SHA" >> "$GITHUB_ENV"
 
       - name: Log in to DigitalOcean Container Registry
-        run: doctl registries login --expiry-seconds 1200
+        run: doctl registry login --expiry-seconds 1200
 
       - name: Build backend image
         run: docker build -t "$BACKEND_IMAGE" .
