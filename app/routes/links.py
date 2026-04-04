@@ -159,7 +159,7 @@ def resolve_link(slug):
         return error_response("not_found", "We could not find that link.", 404)
 
     if not link.is_active:
-        return error_response("inactive_link", "This link is inactive.", 410)
+        return error_response("inactive_link", "This link is inactive.", 404)
 
     link.visit_count += 1
     link.updated_at = next_visible_timestamp(link.updated_at)

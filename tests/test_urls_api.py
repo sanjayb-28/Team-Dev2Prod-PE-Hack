@@ -597,7 +597,7 @@ def test_deactivated_public_url_does_not_resolve_or_record_click(client):
 
     assert deactivate.status_code == 200
     assert deactivate.get_json()["is_active"] is False
-    assert response.status_code == 410
+    assert response.status_code == 404
     assert client.get("/events").get_json() == events_before
 
 
