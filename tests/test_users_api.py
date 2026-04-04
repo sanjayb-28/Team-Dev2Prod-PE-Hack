@@ -111,6 +111,25 @@ def test_create_user_returns_existing_user_for_exact_duplicate(client):
     assert payload["email"] == "testuser_create@example.com"
 
 
+def test_create_user_reuses_existing_email_with_requested_username(client):
+    create_user(1, "old_name", "testuser_create@example.com")
+
+    response = client.post(
+        "/users",
+        json={
+            "username": "testuser_create",
+            "email": "testuser_create@example.com",
+        },
+    )
+
+    assert response.status_code == 201
+    payload = response.get_json()
+    assert payload["id"] == 1
+    assert payload["username"] == "testuser_create"
+    assert payload["email"] == "testuser_create@example.com"
+    assert User.get_by_id(1).username == "testuser_create"
+
+
 def test_create_user_rejects_invalid_schema(client):
     response = client.post(
         "/users",
@@ -158,6 +177,18 @@ def test_update_user(client):
     assert payload["id"] == 1
     assert payload["username"] == "updated_username"
     assert payload["email"] == "silvertrail15@hackstack.io"
+
+
+def test_create_user_rejects_duplicate_username(client):
+    create_user(1, "sharedname", "first@example.com")
+
+    response = client.post(
+        "/users",
+        json={"username": "sharedname", "email": "second@example.com"},
+    )
+
+    assert response.status_code == 409
+    assert response.get_json()["error"]["message"] == "That username is already in use."
 
 
 def test_delete_user(client):

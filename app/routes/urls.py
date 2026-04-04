@@ -287,5 +287,16 @@ def delete_url(url_id):
     if link is None:
         return error_response("not_found", "We could not find that URL.", 404)
 
-    link.delete_instance(recursive=True, delete_nullable=True)
+    if link.is_active:
+        link.is_active = False
+        link.updated_at = datetime.now(UTC)
+        link.save()
+        record_event(
+            link,
+            "deleted",
+            {
+                "reason": "user_requested",
+            },
+        )
+
     return ("", 204)
