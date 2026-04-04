@@ -5,6 +5,7 @@ import type {
   ExperimentRequestPayload,
   ResourceGroupName,
   ResourceKindName,
+  ResourceLogRecord,
   ResourceRecord,
   ResourceSnapshot,
 } from './types'
@@ -68,6 +69,10 @@ export function fetchResourceEvents(kind: ResourceKindName, name: string) {
   return fetchJson<ApiEnvelope<ClusterEventRecord[]>>(
     `/api/resources/${kind}/${name}/events`,
   )
+}
+
+export function fetchResourceLogs(kind: ResourceKindName, name: string) {
+  return fetchJson<ApiEnvelope<ResourceLogRecord>>(`/api/resources/${kind}/${name}/logs`)
 }
 
 export function createExperiment(payload: ExperimentRequestPayload) {

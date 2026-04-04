@@ -1,6 +1,7 @@
 import json
 import re
 import secrets
+import time
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote
 from urllib.request import Request, urlopen
@@ -8,6 +9,7 @@ from urllib.request import Request, urlopen
 from control_plane.cluster import (
     build_api_base,
     is_cluster_mode,
+    list_cluster_experiments,
     load_kubernetes_json,
     normalize_experiment,
     read_service_account_token,
@@ -218,22 +220,21 @@ def list_experiments(config: dict) -> list[dict]:
         return []
 
     namespace = config["CLUSTER_NAMESPACE"]
-    experiments: list[dict] = []
-    for experiment_type, resource in EXPERIMENT_RESOURCE_TYPES.items():
-        try:
-            response = load_kubernetes_json(
-                f"/apis/chaos-mesh.org/v1alpha1/namespaces/{namespace}/{resource['resource']}"
-            )
-        except (HTTPError, URLError):
-            continue
+    return sorted(
+        list_cluster_experiments(namespace, set()),
+        key=lambda item: item.get("updatedAt") or "",
+        reverse=True,
+    )
 
-        for item in response.get("items", []):
-            normalized = normalize_experiment(resource["resource"], item)
-            normalized["type"] = experiment_type
-            normalized["target"] = item.get("metadata", {}).get("labels", {}).get("dev2prod.io/target-name")
-            experiments.append(normalized)
 
-    return sorted(experiments, key=lambda item: item.get("updatedAt") or "", reverse=True)
+def read_experiment(namespace: str, experiment_type: str, name: str) -> dict | None:
+    resource = EXPERIMENT_RESOURCE_TYPES[experiment_type]["resource"]
+    try:
+        return load_kubernetes_json(
+            f"/apis/chaos-mesh.org/v1alpha1/namespaces/{namespace}/{resource}/{quote(name)}"
+        )
+    except (HTTPError, URLError):
+        return None
 
 
 def create_experiment(config: dict, payload: object) -> dict:
@@ -278,6 +279,23 @@ def create_experiment(config: dict, payload: object) -> dict:
     normalized = normalize_experiment(resource, created)
     normalized["type"] = experiment_type
     normalized["target"] = target["name"]
+
+    if normalized.get("status") in {"unknown", "pending"}:
+        for _ in range(3):
+            time.sleep(0.25)
+            refreshed = read_experiment(
+                config["CLUSTER_NAMESPACE"],
+                experiment_type,
+                normalized["name"],
+            )
+            if not refreshed:
+                continue
+            normalized = normalize_experiment(resource, refreshed)
+            normalized["type"] = experiment_type
+            normalized["target"] = target["name"]
+            if normalized.get("status") not in {"unknown", "pending"}:
+                break
+
     return normalized
 
 

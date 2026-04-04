@@ -40,6 +40,11 @@ def test_cluster_status_reports_locked_scope(monkeypatch):
             "controlPlane": {"status": "healthy"},
             "workload": {"status": "healthy"},
             "chaosMesh": {"status": "ready"},
+            "workloadScope": {
+                "deploymentName": "workload-api",
+                "serviceName": "workload-api",
+                "podPrefix": "workload-api-",
+            },
         }
     }
 
@@ -68,6 +73,7 @@ def test_cluster_status_surfaces_unreachable_workload(monkeypatch):
         "message": "Health check is unavailable.",
     }
     assert payload["chaosMesh"] == {"status": "unavailable"}
+    assert payload["workloadScope"]["deploymentName"] == "workload-api"
 
 
 def test_resources_return_local_scope_when_not_in_cluster(monkeypatch):
@@ -357,6 +363,7 @@ def test_stream_returns_cluster_snapshot(monkeypatch):
     assert response.mimetype == "text/event-stream"
     assert "event: cluster_snapshot" in body
     assert '"status": {"clusterName": "dev2prod-local"' in body
+    assert '"workloadScope": {"deploymentName": "workload-api"' in body
 
 
 def test_control_plane_adds_client_origin_header(monkeypatch):

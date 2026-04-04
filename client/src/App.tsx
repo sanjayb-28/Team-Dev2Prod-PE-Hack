@@ -12,6 +12,7 @@ import {
   fetchClusterStatus,
   fetchResourceDetail,
   fetchResourceEvents,
+  fetchResourceLogs,
   fetchResourceSnapshot,
   openClusterStream,
   resourceGroupMeta,
@@ -22,6 +23,7 @@ import type {
   ExperimentTypeName,
   ResourceGroupName,
   ResourceKindName,
+  ResourceLogRecord,
   ResourceRecord,
   ResourceSnapshot,
 } from './types'
@@ -60,6 +62,20 @@ const experimentActions: Array<{
   },
 ]
 
+function formatExperimentType(value: unknown) {
+  const experimentType = String(value ?? 'fault-run')
+  if (experimentType === 'pod-kill') {
+    return 'Pod restart'
+  }
+  if (experimentType === 'network-latency') {
+    return 'Network latency'
+  }
+  if (experimentType === 'cpu-stress') {
+    return 'CPU pressure'
+  }
+  return formatStatusText(experimentType)
+}
+
 function ensureSelection(
   snapshot: ResourceSnapshot,
   preferredGroup: ResourceGroupName,
@@ -86,6 +102,88 @@ function ensureSelection(
 
 function formatStatusText(status: string) {
   return status.replace(/([A-Z])/g, ' $1').replace(/^./, (value) => value.toUpperCase())
+}
+
+function buildEvidenceEvents(resource: ResourceRecord | null, events: ClusterEventRecord[]) {
+  if (resource?.kind !== 'experiment') {
+    return events.slice(0, 5)
+  }
+
+  const highlightedReasons = new Set(['Applied', 'Started', 'Recovered', 'TimeUp'])
+  const preferredEvents = events.filter((event) =>
+    highlightedReasons.has(String(event.reason ?? '')),
+  )
+
+  if (preferredEvents.length > 0) {
+    return preferredEvents.slice(0, 5)
+  }
+
+  return events.slice(0, 5)
+}
+
+function describeEvidence(resource: ResourceRecord | null, inspectorState: RequestState) {
+  if (inspectorState === 'loading') {
+    return 'Refreshing recent events.'
+  }
+
+  if (resource?.kind !== 'experiment') {
+    return 'Recent events attached to the selected resource.'
+  }
+
+  if (resource.status === 'recovered') {
+    return 'This run has finished. Review the events that applied the fault and confirmed recovery.'
+  }
+
+  return 'Cluster events that show how this fault is being applied right now.'
+}
+
+function describeLogs(resource: ResourceRecord | null, logs: ResourceLogRecord | null) {
+  if (logs?.note) {
+    return logs.note
+  }
+
+  if (resource?.kind === 'experiment' && resource.status === 'recovered') {
+    return 'The latest workload logs from the recovery path appear here when they are available.'
+  }
+
+  if (resource?.kind === 'experiment') {
+    return 'The latest workload logs for this active fault run appear here.'
+  }
+
+  return 'Recent lines from the selected resource.'
+}
+
+function describeEmptyLogs(resource: ResourceRecord | null) {
+  if (resource?.kind === 'experiment' && resource.status === 'recovered') {
+    return 'This run has already recovered, and there are no more workload lines to show.'
+  }
+
+  if (resource?.kind === 'experiment') {
+    return 'The workload has not emitted any matching log lines yet.'
+  }
+
+  return 'No log lines are available right now.'
+}
+
+function buildInspectorNotice(resource: ResourceRecord | null, clusterStatus: ClusterStatus | null) {
+  if (!resource || resource.kind !== 'experiment') {
+    return null
+  }
+
+  const workloadLabel = clusterStatus?.workloadScope.deploymentName ?? 'the workload'
+  if (resource.status === 'recovered') {
+    return `This fault run has finished. Start a new run on ${workloadLabel} when you want another proof point.`
+  }
+
+  if (resource.status === 'running') {
+    return `This fault run is active. Watch the event timeline and workload logs for live impact signals.`
+  }
+
+  if (resource.status === 'pending') {
+    return 'The cluster has accepted this fault run and is still applying it.'
+  }
+
+  return null
 }
 
 function formatUpdatedAt(value: unknown) {
@@ -152,12 +250,36 @@ function buildResourceRows(resource: ResourceRecord | null) {
   if (kind === 'experiment') {
     rows.push({
       label: 'Fault',
-      value: String(resource.type ?? 'Unknown'),
+      value: formatExperimentType(resource.type),
     })
     rows.push({
       label: 'Target',
       value: String(resource.target ?? 'Waiting for target'),
     })
+    if (typeof resource.targetKind === 'string' && resource.targetKind) {
+      rows.push({
+        label: 'Scope',
+        value: formatStatusText(resource.targetKind),
+      })
+    }
+    if (typeof resource.latencyMs === 'number') {
+      rows.push({
+        label: 'Latency',
+        value: `${resource.latencyMs} ms`,
+      })
+    }
+    if (typeof resource.cpuLoad === 'number') {
+      rows.push({
+        label: 'CPU load',
+        value: `${resource.cpuLoad}%`,
+      })
+    }
+    if (typeof resource.durationSeconds === 'number') {
+      rows.push({
+        label: 'Duration',
+        value: `${resource.durationSeconds} seconds`,
+      })
+    }
   }
 
   rows.push({
@@ -184,11 +306,126 @@ function summarizeResource(resource: ResourceRecord) {
         Array.isArray(resource.ports) ? resource.ports.join(', ') : 'No ports'
       }`
     case 'experiment':
-      return `${formatStatusText(String(resource.status ?? 'unknown'))} • ${
-        resource.type ?? 'Fault run'
-      }`
+      if (resource.type === 'network-latency' && typeof resource.latencyMs === 'number') {
+        const duration =
+          typeof resource.durationSeconds === 'number' ? ` for ${resource.durationSeconds}s` : ''
+        return `${resource.latencyMs} ms delay${duration} • ${formatStatusText(String(resource.status ?? 'unknown'))}`
+      }
+      if (resource.type === 'cpu-stress' && typeof resource.cpuLoad === 'number') {
+        const duration =
+          typeof resource.durationSeconds === 'number' ? ` for ${resource.durationSeconds}s` : ''
+        return `${resource.cpuLoad}% load${duration} • ${formatStatusText(String(resource.status ?? 'unknown'))}`
+      }
+      return `${formatStatusText(String(resource.status ?? 'unknown'))} • ${formatExperimentType(resource.type)}`
     default:
       return formatStatusText(String(resource.status ?? 'unknown'))
+  }
+}
+
+function asNumber(value: unknown) {
+  return typeof value === 'number' ? value : 0
+}
+
+function getWorkloadDeployment(
+  snapshot: ResourceSnapshot | null,
+  clusterStatus: ClusterStatus | null,
+) {
+  if (!snapshot || !clusterStatus) {
+    return null
+  }
+
+  return (
+    snapshot.resources.deployments.find(
+      (resource) => resource.name === clusterStatus.workloadScope.deploymentName,
+    ) ?? null
+  )
+}
+
+function getWorkloadPods(snapshot: ResourceSnapshot | null, clusterStatus: ClusterStatus | null) {
+  if (!snapshot || !clusterStatus) {
+    return []
+  }
+
+  return snapshot.resources.pods.filter((resource) =>
+    resource.name.startsWith(clusterStatus.workloadScope.podPrefix),
+  )
+}
+
+function getLatestWorkloadPod(pods: ResourceRecord[]) {
+  return pods
+    .slice()
+    .sort((left, right) =>
+      String(left.updatedAt ?? '').localeCompare(String(right.updatedAt ?? '')),
+    )
+    .at(-1) ?? null
+}
+
+function buildRolloutWatch(
+  snapshot: ResourceSnapshot | null,
+  clusterStatus: ClusterStatus | null,
+  displayedResource: ResourceRecord | null,
+) {
+  const deployment = getWorkloadDeployment(snapshot, clusterStatus)
+  const pods = getWorkloadPods(snapshot, clusterStatus)
+  const latestPod = getLatestWorkloadPod(pods)
+
+  if (!clusterStatus || !deployment) {
+    return null
+  }
+
+  const desiredReplicas = asNumber(deployment.desiredReplicas)
+  const readyReplicas = asNumber(deployment.readyReplicas)
+  const readyPods = pods.filter((pod) => pod.ready).length
+  const restartingPods = pods.filter((pod) => asNumber(pod.restartCount) > 0).length
+  const rolloutActive =
+    readyReplicas < desiredReplicas ||
+    (pods.length > 0 && readyPods < pods.length) ||
+    clusterStatus.workload.status === 'degraded'
+  const watchingRecovery =
+    displayedResource?.kind === 'experiment' &&
+    (displayedResource.status === 'running' ||
+      displayedResource.status === 'pending' ||
+      displayedResource.status === 'recovered')
+
+  let title = 'Workload is steady'
+  let note = 'The locked deployment is ready for the next check.'
+
+  if (rolloutActive) {
+    title = 'Replacement is settling'
+    note = 'The workload is still moving back toward a steady state.'
+  } else if (displayedResource?.kind === 'experiment' && displayedResource.status === 'recovered') {
+    title = 'Recovery is complete'
+    note = 'The fault run has ended and the workload has settled again.'
+  } else if (watchingRecovery) {
+    title = 'Watching live recovery'
+    note = 'The workload is holding while the current fault run is active.'
+  }
+
+  return {
+    title,
+    note,
+    tone: rolloutActive ? 'warn' : 'good',
+    rows: [
+      {
+        label: 'Deployment',
+        value: `${readyReplicas} / ${desiredReplicas} ready`,
+      },
+      {
+        label: 'Workload pods',
+        value: pods.length > 0 ? `${readyPods} / ${pods.length} ready` : 'Waiting for pods',
+      },
+      {
+        label: 'Latest pod',
+        value: latestPod?.name ?? 'Waiting for a workload pod',
+      },
+      {
+        label: 'Restarts',
+        value:
+          restartingPods === 0
+            ? 'No recent restarts'
+            : `${restartingPods} pod${restartingPods === 1 ? '' : 's'} restarting`,
+      },
+    ],
   }
 }
 
@@ -205,6 +442,24 @@ function toneForStatus(status?: string) {
   return 'quiet'
 }
 
+function matchesWorkloadScope(resource: ResourceRecord | null, clusterStatus: ClusterStatus | null) {
+  if (!resource || !clusterStatus) {
+    return false
+  }
+
+  const scope = clusterStatus.workloadScope
+  if (resource.kind === 'deployment') {
+    return resource.name === scope.deploymentName
+  }
+  if (resource.kind === 'service') {
+    return resource.name === scope.serviceName
+  }
+  if (resource.kind === 'pod') {
+    return resource.name.startsWith(scope.podPrefix)
+  }
+  return false
+}
+
 function App() {
   const [clusterStatus, setClusterStatus] = useState<ClusterStatus | null>(null)
   const [resourceSnapshot, setResourceSnapshot] = useState<ResourceSnapshot | null>(null)
@@ -212,6 +467,7 @@ function App() {
   const [selectedName, setSelectedName] = useState<string | null>(null)
   const [resourceDetail, setResourceDetail] = useState<ResourceRecord | null>(null)
   const [resourceEvents, setResourceEvents] = useState<ClusterEventRecord[]>([])
+  const [resourceLogs, setResourceLogs] = useState<ResourceLogRecord | null>(null)
   const [query, setQuery] = useState('')
   const [pageState, setPageState] = useState<RequestState>('loading')
   const [inspectorState, setInspectorState] = useState<RequestState>('ready')
@@ -320,15 +576,17 @@ function App() {
       setInspectorState('loading')
 
       try {
-        const [detailResponse, eventsResponse] = await Promise.all([
+        const [detailResponse, eventsResponse, logsResponse] = await Promise.all([
           fetchResourceDetail(kind, resourceName),
           fetchResourceEvents(kind, resourceName),
+          fetchResourceLogs(kind, resourceName),
         ])
 
         if (!cancelled) {
           startTransition(() => {
             setResourceDetail(detailResponse.data)
             setResourceEvents(eventsResponse.data)
+            setResourceLogs(logsResponse.data)
             setInspectorState('ready')
           })
         }
@@ -336,6 +594,7 @@ function App() {
         if (!cancelled) {
           startTransition(() => {
             setInspectorState('error')
+            setResourceLogs(null)
           })
         }
       }
@@ -362,19 +621,22 @@ function App() {
     currentResources.find((item) => item.name === selectedName) ??
     null
   const namespaceEvents = resourceSnapshot?.events.slice(0, 6) ?? []
-  const activeExperiments = resourceSnapshot?.resources.experiments ?? []
-  const selectedResourceKind = String(displayedResource?.kind ?? '')
-  const canTargetFaults =
-    selectedResourceKind === 'deployment' ||
-    selectedResourceKind === 'service' ||
-    selectedResourceKind === 'pod'
+  const experiments = resourceSnapshot?.resources.experiments ?? []
+  const activeExperiments = experiments.filter((experiment) =>
+    ['running', 'pending', 'paused'].includes(String(experiment.status ?? 'unknown')),
+  )
+  const displayedEvidenceEvents = buildEvidenceEvents(displayedResource, resourceEvents)
+  const canTargetFaults = matchesWorkloadScope(displayedResource, clusterStatus)
   const chaosReady = clusterStatus?.chaosMesh.status === 'ready'
   const canRunFaults = Boolean(displayedResource && canTargetFaults && chaosReady)
+  const workloadLabel = clusterStatus?.workloadScope.deploymentName ?? 'the workload'
+  const inspectorNotice = buildInspectorNotice(displayedResource, clusterStatus)
+  const rolloutWatch = buildRolloutWatch(resourceSnapshot, clusterStatus, displayedResource)
 
   const handleRunExperiment = useEffectEvent(async (type: ExperimentTypeName) => {
     if (!displayedResource || !canTargetFaults) {
       setFaultActionState('error')
-      setFaultActionMessage('Choose the workload deployment, service, or pod before starting a fault run.')
+      setFaultActionMessage(`Choose ${workloadLabel} before starting a fault run.`)
       return
     }
 
@@ -539,6 +801,7 @@ function App() {
                 onClick={() => {
                   startTransition(() => {
                     setSelectedGroup(section.group)
+                    setSelectedName(resourceSnapshot?.resources[section.group][0]?.name ?? null)
                   })
                 }}
               >
@@ -622,21 +885,19 @@ function App() {
                 ))}
               </dl>
 
+              {inspectorNotice ? <div className="message">{inspectorNotice}</div> : null}
+
               <section className="detail-events">
                 <div className="detail-events__header">
                   <h3>Evidence</h3>
-                  <p>
-                    {inspectorState === 'loading'
-                      ? 'Refreshing recent events.'
-                      : 'Recent events attached to the selected resource.'}
-                  </p>
+                  <p>{describeEvidence(displayedResource, inspectorState)}</p>
                 </div>
 
-                {resourceEvents.length === 0 ? (
+                {displayedEvidenceEvents.length === 0 ? (
                   <p className="empty-state">No recent events for this resource.</p>
                 ) : (
                   <ul className="event-list">
-                    {resourceEvents.slice(0, 5).map((event, index) => (
+                    {displayedEvidenceEvents.map((event, index) => (
                       <li key={`${event.name ?? event.reason ?? 'event'}-${index}`}>
                         <strong>{event.reason ?? event.type ?? 'Status update'}</strong>
                         <p>{event.message ?? 'The cluster reported a state change without extra notes.'}</p>
@@ -644,6 +905,23 @@ function App() {
                       </li>
                     ))}
                   </ul>
+                )}
+              </section>
+
+              <section className="detail-events detail-events--logs">
+                <div className="detail-events__header">
+                  <h3>Logs</h3>
+                  <p>{describeLogs(displayedResource, resourceLogs)}</p>
+                </div>
+
+                {!resourceLogs || resourceLogs.entries.length === 0 ? (
+                  <p className="empty-state">{describeEmptyLogs(displayedResource)}</p>
+                ) : (
+                  <pre className="log-block">
+                    {resourceLogs.entries.slice(-20).map((entry, index) => (
+                      <code key={`${index}-${entry.line}`}>{entry.line}</code>
+                    ))}
+                  </pre>
                 )}
               </section>
             </>
@@ -663,6 +941,28 @@ function App() {
             </p>
           </div>
 
+          {rolloutWatch ? (
+            <section className="rollout-watch">
+              <div className="detail-events__header">
+                <h3>Recovery watch</h3>
+                <p>{rolloutWatch.note}</p>
+              </div>
+              <strong
+                className={`rollout-watch__status rollout-watch__status--${rolloutWatch.tone}`}
+              >
+                {rolloutWatch.title}
+              </strong>
+              <dl className="rollout-watch__grid">
+                {rolloutWatch.rows.map((row) => (
+                  <div key={row.label}>
+                    <dt>{row.label}</dt>
+                    <dd>{row.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          ) : null}
+
           <div className="action-list">
             {experimentActions.map((action) => (
               <button
@@ -678,8 +978,10 @@ function App() {
                 <small>
                   {!chaosReady
                     ? 'Waiting for fault tooling'
-                    : !canTargetFaults
-                      ? 'Select a workload resource first'
+                    : !displayedResource
+                      ? `Select ${workloadLabel} first`
+                      : !canTargetFaults
+                        ? `Faults stay locked to ${workloadLabel}. Choose the workload deployment, service, or one of its pods.`
                       : activeFaultType === action.type && faultActionState === 'running'
                         ? 'Starting now'
                         : action.helper}

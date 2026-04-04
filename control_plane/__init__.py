@@ -57,6 +57,26 @@ def serialize_sse(event_type: str, data: dict) -> str:
     return f"event: {event_type}\ndata: {json.dumps(data)}\n\n"
 
 
+def build_status_payload(app: Flask) -> dict:
+    return {
+        "clusterName": app.config["CLUSTER_NAME"],
+        "namespace": app.config["CLUSTER_NAMESPACE"],
+        "provider": app.config["CLUSTER_PROVIDER"],
+        "mode": "cluster" if os.environ.get("KUBERNETES_SERVICE_HOST") else "local",
+        "scopeLocked": True,
+        "controlPlane": {"status": "healthy"},
+        "workload": get_workload_status(app.config["WORKLOAD_API_URL"]),
+        "chaosMesh": {
+            "status": "ready" if app.config["CHAOS_MESH_ENABLED"] else "unavailable"
+        },
+        "workloadScope": {
+            "deploymentName": app.config["WORKLOAD_DEPLOYMENT_NAME"],
+            "serviceName": app.config["WORKLOAD_SERVICE_NAME"],
+            "podPrefix": f"{app.config['WORKLOAD_DEPLOYMENT_NAME']}-",
+        },
+    }
+
+
 def create_app() -> Flask:
     load_dotenv()
 
@@ -91,22 +111,7 @@ def create_app() -> Flask:
 
     @app.get("/api/cluster/status")
     def cluster_status():
-        workload = get_workload_status(app.config["WORKLOAD_API_URL"])
-        chaos_mesh_status = "ready" if app.config["CHAOS_MESH_ENABLED"] else "unavailable"
-        mode = "cluster" if os.environ.get("KUBERNETES_SERVICE_HOST") else "local"
-
-        return jsonify(
-            data={
-                "clusterName": app.config["CLUSTER_NAME"],
-                "namespace": app.config["CLUSTER_NAMESPACE"],
-                "provider": app.config["CLUSTER_PROVIDER"],
-                "mode": mode,
-                "scopeLocked": True,
-                "controlPlane": {"status": "healthy"},
-                "workload": workload,
-                "chaosMesh": {"status": chaos_mesh_status},
-            }
-        )
+        return jsonify(data=build_status_payload(app))
 
     @app.get("/api/resources")
     def resources():
@@ -158,22 +163,7 @@ def create_app() -> Flask:
             yield serialize_sse(
                 "cluster_snapshot",
                 {
-                    "status": {
-                        "clusterName": app.config["CLUSTER_NAME"],
-                        "namespace": app.config["CLUSTER_NAMESPACE"],
-                        "provider": app.config["CLUSTER_PROVIDER"],
-                        "mode": "cluster"
-                        if os.environ.get("KUBERNETES_SERVICE_HOST")
-                        else "local",
-                        "scopeLocked": True,
-                        "controlPlane": {"status": "healthy"},
-                        "workload": get_workload_status(app.config["WORKLOAD_API_URL"]),
-                        "chaosMesh": {
-                            "status": "ready"
-                            if app.config["CHAOS_MESH_ENABLED"]
-                            else "unavailable"
-                        },
-                    },
+                    "status": build_status_payload(app),
                     "resources": list_namespace_resources(app.config),
                 },
             )

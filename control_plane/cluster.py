@@ -1,6 +1,7 @@
 import json
 import os
 import ssl
+from datetime import datetime, timedelta, timezone
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote
 from urllib.request import Request, urlopen
@@ -15,6 +16,8 @@ RESOURCE_GROUPS = {
     "service": "services",
     "experiment": "experiments",
 }
+EXPERIMENT_RESOURCE_TYPES = ("podchaos", "networkchaos", "stresschaos")
+EXPERIMENT_CLEANUP_GRACE_SECONDS = 180
 
 
 def is_cluster_mode() -> bool:
@@ -43,6 +46,15 @@ def load_kubernetes_json(path: str, timeout: float = 2.0) -> dict:
 
 def load_kubernetes_text(path: str, timeout: float = 2.0) -> str:
     request = Request(f"{build_api_base()}{path}")
+    request.add_header("Authorization", f"Bearer {read_service_account_token()}")
+    context = ssl.create_default_context(cafile=SERVICE_ACCOUNT_CA_PATH)
+
+    with urlopen(request, timeout=timeout, context=context) as response:
+        return response.read().decode("utf-8")
+
+
+def delete_kubernetes_resource(path: str, timeout: float = 2.0):
+    request = Request(f"{build_api_base()}{path}", method="DELETE")
     request.add_header("Authorization", f"Bearer {read_service_account_token()}")
     context = ssl.create_default_context(cafile=SERVICE_ACCOUNT_CA_PATH)
 
@@ -145,6 +157,7 @@ def normalize_experiment(kind: str, item: dict) -> dict:
     labels = metadata.get("labels", {})
     experiment_status = status.get("experiment", {})
     container_records = experiment_status.get("containerRecords", [])
+    spec = item.get("spec", {})
     phases = {
         str(record.get("phase", "")).strip().lower()
         for record in container_records
@@ -163,18 +176,109 @@ def normalize_experiment(kind: str, item: dict) -> dict:
         normalized_status = "running"
     elif conditions.get("Selected") or conditions.get("AllInjected"):
         normalized_status = "pending"
+    elif metadata.get("creationTimestamp"):
+        normalized_status = "pending"
     else:
         normalized_status = "unknown"
 
-    return {
+    normalized: dict = {
         "kind": "experiment",
         "type": labels.get("dev2prod.io/experiment-type", kind),
         "name": metadata.get("name"),
         "status": normalized_status,
+        "targetKind": labels.get("dev2prod.io/target-kind"),
         "target": labels.get("dev2prod.io/target-name")
         or labels.get("app.kubernetes.io/name"),
         "updatedAt": metadata.get("creationTimestamp"),
     }
+
+    duration = spec.get("duration")
+    if isinstance(duration, str) and duration.endswith("s") and duration[:-1].isdigit():
+        normalized["durationSeconds"] = int(duration[:-1])
+
+    if normalized["type"] == "network-latency":
+        latency = spec.get("delay", {}).get("latency")
+        if isinstance(latency, str) and latency.endswith("ms") and latency[:-2].isdigit():
+            normalized["latencyMs"] = int(latency[:-2])
+
+    if normalized["type"] == "cpu-stress":
+        load = spec.get("stressors", {}).get("cpu", {}).get("load")
+        if isinstance(load, int):
+            normalized["cpuLoad"] = load
+
+    return normalized
+
+
+def settle_experiment_status(experiment: dict, active_pod_names: set[str]) -> dict:
+    if experiment.get("type") != "pod-kill":
+        return experiment
+
+    target = str(experiment.get("target") or "").strip()
+    if not target:
+        return experiment
+
+    if target in active_pod_names:
+        return experiment
+
+    next_experiment = dict(experiment)
+    next_experiment["status"] = "recovered"
+    return next_experiment
+
+
+def parse_kubernetes_timestamp(value: object) -> datetime | None:
+    if not isinstance(value, str) or not value:
+        return None
+
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def should_prune_experiment(experiment: dict, now: datetime | None = None) -> bool:
+    if experiment.get("status") != "recovered":
+        return False
+
+    updated_at = parse_kubernetes_timestamp(experiment.get("updatedAt"))
+    if updated_at is None:
+        return False
+
+    current_time = now or datetime.now(timezone.utc)
+    base_age = EXPERIMENT_CLEANUP_GRACE_SECONDS
+    duration_seconds = experiment.get("durationSeconds")
+    if isinstance(duration_seconds, int):
+        base_age += duration_seconds
+
+    return current_time >= updated_at + timedelta(seconds=base_age)
+
+
+def list_cluster_experiments(namespace: str, active_pod_names: set[str]) -> list[dict]:
+    experiments: list[dict] = []
+    for kind in EXPERIMENT_RESOURCE_TYPES:
+        try:
+            response = load_kubernetes_json(
+                f"/apis/chaos-mesh.org/v1alpha1/namespaces/{namespace}/{kind}"
+            )
+        except (HTTPError, URLError):
+            continue
+
+        for item in response.get("items", []):
+            experiment = settle_experiment_status(
+                normalize_experiment(kind, item),
+                active_pod_names,
+            )
+            if should_prune_experiment(experiment):
+                try:
+                    delete_kubernetes_resource(
+                        f"/apis/chaos-mesh.org/v1alpha1/namespaces/{namespace}/{kind}/{quote(experiment['name'])}"
+                    )
+                except (HTTPError, URLError):
+                    experiments.append(experiment)
+                continue
+
+            experiments.append(experiment)
+
+    return experiments
 
 
 def list_local_resources(config: dict) -> dict:
@@ -232,18 +336,12 @@ def load_cluster_resources(namespace: str) -> dict:
     services = load_kubernetes_json(f"/api/v1/namespaces/{namespace}/services")
     events = load_kubernetes_json(f"/api/v1/namespaces/{namespace}/events")
 
-    experiments = []
-    for kind in ("podchaos", "networkchaos", "stresschaos"):
-        try:
-            response = load_kubernetes_json(
-                f"/apis/chaos-mesh.org/v1alpha1/namespaces/{namespace}/{kind}"
-            )
-        except (HTTPError, URLError):
-            continue
-
-        experiments.extend(
-            normalize_experiment(kind, item) for item in response.get("items", [])
-        )
+    active_pod_names = {
+        item.get("metadata", {}).get("name")
+        for item in pods.get("items", [])
+        if item.get("metadata", {}).get("name")
+    }
+    experiments = list_cluster_experiments(namespace, active_pod_names)
 
     return {
         "mode": "cluster",
@@ -288,9 +386,14 @@ def get_resource_detail(config: dict, kind: str, name: str) -> dict | None:
 def get_resource_events(config: dict, kind: str, name: str) -> list[dict]:
     payload = list_namespace_resources(config)
     normalized_kind = normalize_kind(kind)
-    experiment_kinds = {"podchaos", "networkchaos", "stresschaos"}
+    experiment_kinds = {
+        "podchaos",
+        "networkchaos",
+        "stresschaos",
+        "podnetworkchaos",
+    }
 
-    return [
+    matched_events = [
         event
         for event in payload["events"]
         if event.get("resourceName") == name
@@ -302,6 +405,12 @@ def get_resource_events(config: dict, kind: str, name: str) -> list[dict]:
             )
         )
     ]
+
+    return sorted(
+        matched_events,
+        key=lambda event: event.get("timestamp") or "",
+        reverse=True,
+    )
 
 
 def get_resource_logs(config: dict, kind: str, name: str) -> dict | None:
@@ -321,6 +430,12 @@ def get_resource_logs(config: dict, kind: str, name: str) -> dict | None:
                 "cluster log endpoint is connected."
             ),
         }
+
+    if normalized_kind == "experiment":
+        payload = list_namespace_resources(config)
+        experiment_logs = get_experiment_logs(config, resource, payload["resources"]["pods"])
+        if experiment_logs is not None:
+            return experiment_logs
 
     if normalized_kind != "pod":
         return {
@@ -355,4 +470,78 @@ def get_resource_logs(config: dict, kind: str, name: str) -> dict | None:
             if entries
             else "The pod log stream is empty right now."
         ),
+    }
+
+
+def read_pod_logs(namespace: str, pod_name: str) -> list[dict] | None:
+    try:
+        log_text = load_kubernetes_text(
+            f"/api/v1/namespaces/{namespace}/pods/{quote(pod_name)}/log?tailLines=80"
+        )
+    except (HTTPError, URLError):
+        return None
+
+    return [{"line": line} for line in log_text.splitlines()[-80:] if line.strip()]
+
+
+def get_latest_workload_pod(config: dict, pods: list[dict]) -> dict | None:
+    workload_prefix = f"{config.get('WORKLOAD_DEPLOYMENT_NAME', 'workload-api')}-"
+    workload_pods = [
+        pod
+        for pod in pods
+        if str(pod.get("name", "")).startswith(workload_prefix)
+    ]
+    if not workload_pods:
+        return None
+
+    return sorted(
+        workload_pods,
+        key=lambda pod: str(pod.get("updatedAt") or ""),
+        reverse=True,
+    )[0]
+
+
+def get_experiment_logs(config: dict, resource: dict, pods: list[dict]) -> dict | None:
+    namespace = config["CLUSTER_NAMESPACE"]
+    target_kind = normalize_kind(resource.get("targetKind"))
+    target_name = str(resource.get("target") or "").strip()
+    selected_pod: dict | None = None
+
+    if target_kind == "pod" and target_name:
+        selected_pod = next((pod for pod in pods if pod.get("name") == target_name), None)
+
+    if selected_pod is None:
+        selected_pod = get_latest_workload_pod(config, pods)
+
+    if selected_pod is None:
+        return {
+            "kind": resource.get("kind"),
+            "name": resource.get("name"),
+            "entries": [],
+            "note": "No workload pod logs are available for this fault run right now.",
+        }
+
+    pod_name = str(selected_pod.get("name") or "")
+    entries = read_pod_logs(namespace, pod_name)
+    if entries is None:
+        return {
+            "kind": resource.get("kind"),
+            "name": resource.get("name"),
+            "entries": [],
+            "note": "The workload pod logs are unavailable for this fault run right now.",
+        }
+
+    if target_kind == "pod" and target_name and pod_name != target_name:
+        note = f"Showing the latest lines from the replacement workload pod {pod_name}."
+    else:
+        note = f"Showing the latest lines from workload pod {pod_name}."
+
+    if not entries:
+        note = "The workload pod log stream is empty right now."
+
+    return {
+        "kind": resource.get("kind"),
+        "name": resource.get("name"),
+        "entries": entries,
+        "note": note,
     }
