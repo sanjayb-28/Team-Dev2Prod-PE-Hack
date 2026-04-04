@@ -121,6 +121,71 @@ function buildEvidenceEvents(resource: ResourceRecord | null, events: ClusterEve
   return events.slice(0, 5)
 }
 
+function describeEvidence(resource: ResourceRecord | null, inspectorState: RequestState) {
+  if (inspectorState === 'loading') {
+    return 'Refreshing recent events.'
+  }
+
+  if (resource?.kind !== 'experiment') {
+    return 'Recent events attached to the selected resource.'
+  }
+
+  if (resource.status === 'recovered') {
+    return 'This run has finished. Review the events that applied the fault and confirmed recovery.'
+  }
+
+  return 'Cluster events that show how this fault is being applied right now.'
+}
+
+function describeLogs(resource: ResourceRecord | null, logs: ResourceLogRecord | null) {
+  if (logs?.note) {
+    return logs.note
+  }
+
+  if (resource?.kind === 'experiment' && resource.status === 'recovered') {
+    return 'The latest workload logs from the recovery path appear here when they are available.'
+  }
+
+  if (resource?.kind === 'experiment') {
+    return 'The latest workload logs for this active fault run appear here.'
+  }
+
+  return 'Recent lines from the selected resource.'
+}
+
+function describeEmptyLogs(resource: ResourceRecord | null) {
+  if (resource?.kind === 'experiment' && resource.status === 'recovered') {
+    return 'This run has already recovered, and there are no more workload lines to show.'
+  }
+
+  if (resource?.kind === 'experiment') {
+    return 'The workload has not emitted any matching log lines yet.'
+  }
+
+  return 'No log lines are available right now.'
+}
+
+function buildInspectorNotice(resource: ResourceRecord | null, clusterStatus: ClusterStatus | null) {
+  if (!resource || resource.kind !== 'experiment') {
+    return null
+  }
+
+  const workloadLabel = clusterStatus?.workloadScope.deploymentName ?? 'the workload'
+  if (resource.status === 'recovered') {
+    return `This fault run has finished. Start a new run on ${workloadLabel} when you want another proof point.`
+  }
+
+  if (resource.status === 'running') {
+    return `This fault run is active. Watch the event timeline and workload logs for live impact signals.`
+  }
+
+  if (resource.status === 'pending') {
+    return 'The cluster has accepted this fault run and is still applying it.'
+  }
+
+  return null
+}
+
 function formatUpdatedAt(value: unknown) {
   if (typeof value !== 'string' || !value) {
     return 'Waiting for the first cluster update'
@@ -458,6 +523,7 @@ function App() {
   const chaosReady = clusterStatus?.chaosMesh.status === 'ready'
   const canRunFaults = Boolean(displayedResource && canTargetFaults && chaosReady)
   const workloadLabel = clusterStatus?.workloadScope.deploymentName ?? 'the workload'
+  const inspectorNotice = buildInspectorNotice(displayedResource, clusterStatus)
 
   const handleRunExperiment = useEffectEvent(async (type: ExperimentTypeName) => {
     if (!displayedResource || !canTargetFaults) {
@@ -711,16 +777,12 @@ function App() {
                 ))}
               </dl>
 
+              {inspectorNotice ? <div className="message">{inspectorNotice}</div> : null}
+
               <section className="detail-events">
                 <div className="detail-events__header">
                   <h3>Evidence</h3>
-                  <p>
-                    {inspectorState === 'loading'
-                      ? 'Refreshing recent events.'
-                      : displayedResource.kind === 'experiment'
-                        ? 'Cluster events that show how this fault was applied and recovered.'
-                        : 'Recent events attached to the selected resource.'}
-                  </p>
+                  <p>{describeEvidence(displayedResource, inspectorState)}</p>
                 </div>
 
                 {displayedEvidenceEvents.length === 0 ? (
@@ -741,11 +803,11 @@ function App() {
               <section className="detail-events detail-events--logs">
                 <div className="detail-events__header">
                   <h3>Logs</h3>
-                  <p>{resourceLogs?.note ?? 'Recent lines from the selected resource.'}</p>
+                  <p>{describeLogs(displayedResource, resourceLogs)}</p>
                 </div>
 
                 {!resourceLogs || resourceLogs.entries.length === 0 ? (
-                  <p className="empty-state">No log lines are available right now.</p>
+                  <p className="empty-state">{describeEmptyLogs(displayedResource)}</p>
                 ) : (
                   <pre className="log-block">
                     {resourceLogs.entries.slice(-20).map((entry, index) => (
@@ -789,7 +851,7 @@ function App() {
                     : !displayedResource
                       ? `Select ${workloadLabel} first`
                       : !canTargetFaults
-                        ? `Faults stay locked to ${workloadLabel}`
+                        ? `Faults stay locked to ${workloadLabel}. Choose the workload deployment, service, or one of its pods.`
                       : activeFaultType === action.type && faultActionState === 'running'
                         ? 'Starting now'
                         : action.helper}
