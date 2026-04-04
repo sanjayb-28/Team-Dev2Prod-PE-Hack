@@ -116,6 +116,27 @@ def test_create_event(client):
     assert payload["details"] == {"referrer": "https://google.com"}
 
 
+def test_create_event_allows_missing_details(client):
+    create_user(1)
+    link = create_link(1)
+
+    response = client.post(
+        "/events",
+        json={
+            "url_id": link.id,
+            "user_id": 1,
+            "event_type": "click",
+        },
+    )
+
+    assert response.status_code == 201
+    payload = response.get_json()
+    assert payload["url_id"] == link.id
+    assert payload["user_id"] == 1
+    assert payload["event_type"] == "click"
+    assert payload["details"] is None
+
+
 def test_create_event_recovers_when_id_sequence_is_behind(client):
     create_user(1)
     link = create_link(1)
