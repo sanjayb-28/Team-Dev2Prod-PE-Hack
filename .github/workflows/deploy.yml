@@ -54,7 +54,11 @@ jobs:
           echo "CLIENT_IMAGE=registry.digitalocean.com/${{ secrets.DOCR_REGISTRY }}/${CLIENT_REPOSITORY}:$SHORT_SHA" >> "$GITHUB_ENV"
 
       - name: Log in to DigitalOcean Container Registry
-        run: doctl registry login --expiry-seconds 1200
+        run: |
+          mkdir -p "$HOME/.docker"
+          doctl registries docker-config "${{ secrets.DOCR_REGISTRY }}" \
+            --read-write \
+            --expiry-seconds 1200 > "$HOME/.docker/config.json"
 
       - name: Build backend image
         run: docker build -t "$BACKEND_IMAGE" .
@@ -75,7 +79,7 @@ jobs:
         run: kubectl apply -f infra/digitalocean/k8s/namespace.yaml
 
       - name: Apply registry pull secret
-        run: doctl registry kubernetes-manifest --namespace="$DO_NAMESPACE" --name=do-registry | kubectl apply -f -
+        run: doctl registries kubernetes-manifest "${{ secrets.DOCR_REGISTRY }}" --namespace="$DO_NAMESPACE" --name=do-registry | kubectl apply -f -
 
       - name: Apply workload secret
         run: |
