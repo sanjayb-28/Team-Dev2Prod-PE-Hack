@@ -1,4 +1,4 @@
-name: Tests
+name: Tests and Gate
 
 on:
   push:
@@ -25,3 +25,12 @@ jobs:
 
       - name: Run tests and coverage gate
         run: uv run pytest
+
+  release-gate:
+    runs-on: ubuntu-latest
+    needs:
+      - workload-tests
+
+    steps:
+      - name: Confirm release gate
+        run: echo "All required checks passed. Release gate is open."
