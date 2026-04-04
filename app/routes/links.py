@@ -7,6 +7,7 @@ from peewee import DoesNotExist
 from peewee import IntegrityError
 from peewee import fn
 
+from app.cache import URL_CACHE_PREFIX, invalidate_cache_prefix
 from app.errors import error_response
 from app.models import Event, Link, User
 from app.services import record_event
@@ -171,6 +172,7 @@ def resolve_link(slug):
             "original_url": link.target_url,
         },
     )
+    invalidate_cache_prefix(URL_CACHE_PREFIX)
 
     return redirect(link.target_url, code=302)
 

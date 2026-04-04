@@ -231,6 +231,25 @@ def test_update_url_invalidates_list_cache(client, monkeypatch):
     assert refreshed_response.headers["X-Cache"] == "MISS"
 
 
+def test_resolve_short_code_invalidates_public_url_cache(client, monkeypatch):
+    create_user(1)
+    link = create_link(1, slug="cachehit")
+    fake_cache = FakeCacheClient()
+    monkeypatch.setattr(cache_module, "_cache_client", fake_cache)
+    monkeypatch.setattr(cache_module, "_cache_enabled", True)
+
+    warm_list = client.get("/urls")
+    warm_detail = client.get(f"/urls/{link.id}")
+    resolve_response = client.get("/cachehit", follow_redirects=False)
+    refreshed_detail = client.get(f"/urls/{link.id}")
+
+    assert warm_list.headers["X-Cache"] == "MISS"
+    assert warm_detail.headers["X-Cache"] == "MISS"
+    assert resolve_response.status_code == 302
+    assert refreshed_detail.headers["X-Cache"] == "MISS"
+    assert refreshed_detail.get_json()["visit_count"] == 1
+
+
 def test_list_urls_supports_user_filter(client):
     create_user(1)
     create_user(2)
