@@ -235,6 +235,9 @@ def create_url():
     else:
         short_code = generate_short_code()
 
+    while Link.select().where(Link.slug == short_code).exists():
+        short_code = generate_short_code()
+
     title = raw_title.strip() if isinstance(raw_title, str) and raw_title.strip() else None
     link = None
     for _ in range(6):

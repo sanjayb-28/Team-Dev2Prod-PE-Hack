@@ -409,6 +409,7 @@ def test_create_url_regenerates_when_requested_short_code_is_taken(client, monke
 
     assert response.status_code == 201
     payload = response.get_json()
+    assert payload["id"] == 2
     assert payload["short_code"] == "fresh2"
     assert Link.select().where(Link.slug == "fresh2").exists()
 
