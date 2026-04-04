@@ -499,6 +499,27 @@ def test_create_url_rejects_requested_short_code_when_it_is_taken(client, monkey
     assert Link.select().count() == 1
 
 
+def test_create_url_rejects_requested_short_code_when_case_differs_only_by_case(client):
+    create_user(1)
+    create_link(1, slug="Taken1")
+
+    response = client.post(
+        "/urls",
+        json={
+            "user_id": 1,
+            "original_url": "https://example.com/fresh-requested",
+            "title": "Fresh requested URL",
+            "short_code": "taken1",
+        },
+    )
+
+    assert response.status_code == 409
+    payload = response.get_json()
+    assert payload["error"]["code"] == "conflict"
+    assert payload["error"]["message"] == "That short code is already in use."
+    assert Link.select().count() == 1
+
+
 def test_delete_url(client):
     create_user(1)
     link = create_link(1, slug="delete-url")
@@ -576,5 +597,27 @@ def test_resolving_public_short_code_updates_visit_count(client):
     response = client.get(f"/{created['short_code']}", follow_redirects=False)
 
     assert response.status_code == 302
+    detail = client.get(f"/urls/{created['id']}").get_json()
+    assert detail["visit_count"] == 1
+
+
+def test_public_short_code_resolution_is_case_insensitive(client):
+    create_user(1)
+
+    created = client.post(
+        "/urls",
+        json={
+            "user_id": 1,
+            "original_url": "https://example.com/mixed-case",
+            "title": "Mixed case",
+            "short_code": "MiXeD1",
+        },
+    ).get_json()
+
+    response = client.get("/mixed1", follow_redirects=False)
+
+    assert created["short_code"] == "MiXeD1"
+    assert response.status_code == 302
+    assert response.headers["Location"] == "https://example.com/mixed-case"
     detail = client.get(f"/urls/{created['id']}").get_json()
     assert detail["visit_count"] == 1

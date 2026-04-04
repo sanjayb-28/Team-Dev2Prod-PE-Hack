@@ -5,6 +5,7 @@ from urllib.parse import urlparse
 from flask import Blueprint, jsonify, redirect, request
 from peewee import DoesNotExist
 from peewee import IntegrityError
+from peewee import fn
 
 from app.errors import error_response
 from app.models import Event, Link, User
@@ -116,7 +117,7 @@ def validate_payload(payload):
 
 def get_link_or_none(slug):
     try:
-        return Link.get(Link.slug == slug)
+        return Link.get(fn.LOWER(Link.slug) == slug.lower())
     except DoesNotExist:
         return None
 

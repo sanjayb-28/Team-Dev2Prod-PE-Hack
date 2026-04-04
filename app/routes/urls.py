@@ -4,7 +4,7 @@ from string import ascii_letters, digits
 from urllib.parse import urlparse
 
 from flask import Blueprint, jsonify, request
-from peewee import DoesNotExist, IntegrityError
+from peewee import DoesNotExist, IntegrityError, fn
 
 from app.cache import (
     URL_CACHE_PREFIX,
@@ -145,16 +145,24 @@ def get_url_or_none(url_id):
         return None
 
 
+def short_code_exists(short_code):
+    return (
+        Link.select()
+        .where(fn.LOWER(Link.slug) == short_code.lower())
+        .exists()
+    )
+
+
 def generate_short_code(length=6):
     for _ in range(20):
         candidate = "".join(choice(SHORT_CODE_ALPHABET) for _ in range(length))
-        if not Link.select().where(Link.slug == candidate).exists():
+        if not short_code_exists(candidate):
             return candidate
     raise RuntimeError("Could not generate a unique short code.")
 
 
 def resolve_create_url_conflict(short_code):
-    if Link.select().where(Link.slug == short_code).exists():
+    if short_code_exists(short_code):
         return error_response("conflict", "That short code is already in use.", 409)
     return None
 
@@ -254,7 +262,7 @@ def create_url():
     else:
         short_code = generate_short_code()
 
-    while Link.select().where(Link.slug == short_code).exists():
+    while short_code_exists(short_code):
         short_code = generate_short_code()
 
     title = raw_title.strip() if isinstance(raw_title, str) and raw_title.strip() else None
