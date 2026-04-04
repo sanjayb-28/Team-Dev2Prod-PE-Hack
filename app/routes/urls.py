@@ -60,7 +60,7 @@ def validate_user_reference(user_id):
 
 
 def validate_title(title):
-    if title is not None and (not isinstance(title, str) or not title.strip()):
+    if title is not None and not isinstance(title, str):
         return "Title must be plain text."
     if title is not None and len(title.strip()) > TITLE_MAX_LENGTH:
         return f"Title must be {TITLE_MAX_LENGTH} characters or fewer."
@@ -197,7 +197,7 @@ def create_url():
             slug=short_code,
             user_id=payload["user_id"],
             target_url=payload["original_url"].strip(),
-            title=payload.get("title").strip() if payload.get("title") else None,
+            title=payload.get("title").strip() if payload.get("title", "").strip() else None,
         )
     except IntegrityError:
         return error_response("conflict", "That short code is already in use.", 409)
@@ -256,7 +256,7 @@ def update_url(url_id):
         title_error = validate_title(payload.get("title"))
         if title_error:
             return error_response("validation_failed", title_error, 422)
-        link.title = payload["title"].strip() if payload["title"] is not None else None
+        link.title = payload["title"].strip() if payload["title"] and payload["title"].strip() else None
 
     if "is_active" in payload:
         if not isinstance(payload["is_active"], bool):

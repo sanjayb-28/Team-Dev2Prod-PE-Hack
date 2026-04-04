@@ -42,9 +42,7 @@ def validate_event_type(event_type):
 
 
 def validate_user_id(user_id):
-    if user_id is not None and (
-        isinstance(user_id, bool) or not isinstance(user_id, int) or user_id <= 0
-    ):
+    if isinstance(user_id, bool) or not isinstance(user_id, int) or user_id <= 0:
         return "User ID must be a positive number."
     return None
 
@@ -137,17 +135,23 @@ def create_event():
         return error_response("validation_failed", "Choose an active URL.", 422)
 
     user_id = payload.get("user_id")
-    if user_id is not None and not User.select().where(User.id == user_id).exists():
+    if not User.select().where(User.id == user_id).exists():
         return error_response("validation_failed", "Choose an existing user.", 422)
+    if link.user_id != user_id:
+        return error_response(
+            "validation_failed",
+            "Choose the user who owns that URL.",
+            422,
+        )
 
     details = payload.get("details")
+    if not isinstance(details, dict):
+        return error_response(
+            "validation_failed",
+            "details must be a JSON object.",
+            422,
+        )
     if details is not None:
-        if not isinstance(details, dict):
-            return error_response(
-                "validation_failed",
-                "details must be a JSON object.",
-                422,
-            )
         try:
             details = json.dumps(details, sort_keys=True)
         except TypeError:

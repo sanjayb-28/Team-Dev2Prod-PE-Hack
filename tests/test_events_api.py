@@ -133,6 +133,42 @@ def test_create_event_rejects_non_object_details(client):
     assert response.get_json()["error"]["message"] == "details must be a JSON object."
 
 
+def test_create_event_requires_user_id(client):
+    create_user(1)
+    link = create_link(1)
+
+    response = client.post(
+        "/events",
+        json={
+            "url_id": link.id,
+            "event_type": "click",
+            "details": {"referrer": "https://google.com"},
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.get_json()["error"]["message"] == "User ID must be a positive number."
+
+
+def test_create_event_rejects_user_who_does_not_own_url(client):
+    create_user(1)
+    create_user(2)
+    link = create_link(1)
+
+    response = client.post(
+        "/events",
+        json={
+            "url_id": link.id,
+            "user_id": 2,
+            "event_type": "click",
+            "details": {"referrer": "https://google.com"},
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.get_json()["error"]["message"] == "Choose the user who owns that URL."
+
+
 def test_create_event_rejects_inactive_url(client):
     create_user(1)
     link = create_link(1)

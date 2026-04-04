@@ -239,6 +239,18 @@ def test_update_url_allows_clearing_title(client):
     assert Link.get_by_id(link.id).title is None
 
 
+def test_update_url_treats_blank_title_as_cleared(client):
+    create_user(1)
+    link = create_link(1, title="Filled title")
+
+    response = client.put(f"/urls/{link.id}", json={"title": "   "})
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["title"] is None
+    assert Link.get_by_id(link.id).title is None
+
+
 def test_create_url_rejects_overlong_short_code(client):
     create_user(1)
 
