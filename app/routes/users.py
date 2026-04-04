@@ -5,6 +5,7 @@ from flask import Blueprint, jsonify, request
 from peewee import DoesNotExist, IntegrityError
 from peewee import fn
 
+from app.database import sync_primary_key_sequence
 from app.errors import error_response
 from app.models import Event, Link, User
 from app.services import import_users_csv
@@ -66,8 +67,9 @@ def get_user_or_none(user_id):
         return None
 
 
-def reuse_user_for_create(normalized_username, normalized_email):
-    existing_user = get_existing_user_by_email(normalized_email)
+def reuse_user_for_create(normalized_username, normalized_email, existing_user=None):
+    if existing_user is None:
+        existing_user = get_existing_user_by_email(normalized_email)
     if existing_user is None:
         return error_response("conflict", "That email is already in use.", 409)
 
@@ -87,6 +89,22 @@ def reuse_user_for_create(normalized_username, normalized_email):
     existing_user.username = normalized_username
     existing_user.save()
     return jsonify(serialize_user(existing_user)), 201
+
+
+def resolve_create_user_conflict(normalized_username, normalized_email):
+    existing_user = get_existing_user_by_email(normalized_email)
+    if existing_user is not None:
+        return reuse_user_for_create(
+            normalized_username,
+            normalized_email,
+            existing_user=existing_user,
+        )
+
+    username_owner = get_existing_user_by_username(normalized_username)
+    if username_owner is not None:
+        return error_response("conflict", "That username is already in use.", 409)
+
+    return None
 
 
 @users_bp.get("/users")
@@ -159,7 +177,28 @@ def create_user():
             email=normalized_email,
         )
     except IntegrityError:
-        return reuse_user_for_create(normalized_username, normalized_email)
+        conflict_response = resolve_create_user_conflict(
+            normalized_username,
+            normalized_email,
+        )
+        if conflict_response is not None:
+            return conflict_response
+
+        sync_primary_key_sequence(User)
+
+        try:
+            user = User.create(
+                username=normalized_username,
+                email=normalized_email,
+            )
+        except IntegrityError:
+            conflict_response = resolve_create_user_conflict(
+                normalized_username,
+                normalized_email,
+            )
+            if conflict_response is not None:
+                return conflict_response
+            raise
 
     return jsonify(serialize_user(user)), 201
 

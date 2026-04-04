@@ -12,6 +12,25 @@ class BaseModel(Model):
         database = db
 
 
+def quote_identifier(identifier: str) -> str:
+    return '"' + identifier.replace('"', '""') + '"'
+
+
+def sync_primary_key_sequence(model) -> None:
+    table_name = quote_identifier(model._meta.table_name)
+    primary_key = model._meta.primary_key.column_name
+    quoted_primary_key = quote_identifier(primary_key)
+    db.execute_sql(
+        f"""
+        SELECT setval(
+            pg_get_serial_sequence('{table_name}', '{primary_key}'),
+            COALESCE((SELECT MAX({quoted_primary_key}) FROM {table_name}), 1),
+            COALESCE((SELECT MAX({quoted_primary_key}) FROM {table_name}) IS NOT NULL, FALSE)
+        )
+        """
+    )
+
+
 def is_postgres_url(database_url: str) -> bool:
     scheme = urlparse(database_url).scheme.lower()
     return scheme in {"postgres", "postgresql"}

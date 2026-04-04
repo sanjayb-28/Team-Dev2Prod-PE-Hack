@@ -121,6 +121,27 @@ def test_import_users_csv_allows_repeated_usernames(app, tmp_path):
     assert User.select().where(User.username == "sharedname").count() == 2
 
 
+def test_import_users_csv_syncs_primary_key_sequence(app, tmp_path):
+    csv_path = tmp_path / "users.csv"
+    write_users_csv(
+        csv_path,
+        [
+            {
+                "id": "4",
+                "username": "seeded-user",
+                "email": "seeded-user@example.com",
+                "created_at": "2024-04-12 11:11:33",
+            }
+        ],
+    )
+
+    import_users_csv(csv_path)
+
+    user = User.create(username="next-user", email="next-user@example.com")
+
+    assert user.id == 5
+
+
 def test_import_urls_csv_creates_links(app, tmp_path):
     csv_path = tmp_path / "urls.csv"
     write_urls_csv(
@@ -317,3 +338,4 @@ def test_import_events_csv_rejects_unknown_links(app, tmp_path):
         assert str(exc) == "Seed event references an unknown url_id: 999"
     else:
         raise AssertionError("Expected import_events_csv to reject unknown links.")
+

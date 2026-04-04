@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
 from io import BytesIO
 
+from app.database import db
 from app.models import Event, Link, User
 from app.routes import users as users_routes
 from peewee import IntegrityError
@@ -33,6 +34,60 @@ def test_bulk_import_users(client):
     assert response.status_code == 201
     assert response.get_json() == {"count": 2}
     assert User.select().count() == 2
+
+
+def test_create_user_after_bulk_import_uses_next_id(client):
+    csv_payload = "\n".join(
+        [
+            "id,username,email,created_at",
+            "1,silvertrail15,silvertrail15@hackstack.io,2025-09-19 22:25:05",
+            "2,urbancanyon36,urbancanyon36@opswise.net,2024-04-09 02:51:03",
+        ]
+    )
+
+    bulk_response = client.post(
+        "/users/bulk",
+        data={"file": (BytesIO(csv_payload.encode("utf-8")), "users.csv")},
+        content_type="multipart/form-data",
+    )
+
+    assert bulk_response.status_code == 201
+
+    create_response = client.post(
+        "/users",
+        json={"username": "testuser_create", "email": "testuser_create@example.com"},
+    )
+
+    assert create_response.status_code == 201
+    payload = create_response.get_json()
+    assert payload["id"] == 3
+    assert payload["username"] == "testuser_create"
+    assert payload["email"] == "testuser_create@example.com"
+
+
+def test_create_user_recovers_when_id_sequence_is_behind(client):
+    create_user(1, "seed-user-one", "seed-user-one@example.com")
+    create_user(2, "seed-user-two", "seed-user-two@example.com")
+    db.execute_sql(
+        """
+        SELECT setval(
+            pg_get_serial_sequence('\"user\"', 'id'),
+            1,
+            TRUE
+        )
+        """
+    )
+
+    response = client.post(
+        "/users",
+        json={"username": "testuser_create", "email": "testuser_create@example.com"},
+    )
+
+    assert response.status_code == 201
+    payload = response.get_json()
+    assert payload["id"] == 3
+    assert payload["username"] == "testuser_create"
+    assert payload["email"] == "testuser_create@example.com"
 
 
 def test_list_users(client):

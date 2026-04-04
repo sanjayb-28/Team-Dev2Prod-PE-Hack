@@ -4,7 +4,7 @@ from pathlib import Path
 
 from peewee import IntegrityError
 
-from app.database import db
+from app.database import db, sync_primary_key_sequence
 from app.models import Event, Link, User
 
 CSV_TIMESTAMP = "%Y-%m-%d %H:%M:%S"
@@ -132,6 +132,7 @@ def import_urls_csv(path: str | Path) -> dict:
                     setattr(link, field, value)
                 link.save()
                 updated += 1
+        sync_primary_key_sequence(Link)
     finally:
         if opened_here and not db.is_closed():
             db.close()
@@ -182,6 +183,7 @@ def import_users_csv(path: str | Path) -> dict:
                     updated += 1
                 except IntegrityError as error:
                     raise ValueError("Seed file contains conflicting user data.") from error
+        sync_primary_key_sequence(User)
     finally:
         if opened_here and not db.is_closed():
             db.close()
@@ -227,6 +229,7 @@ def import_events_csv(path: str | Path) -> dict:
                     setattr(event, field, value)
                 event.save()
                 updated += 1
+        sync_primary_key_sequence(Event)
     finally:
         if opened_here and not db.is_closed():
             db.close()
