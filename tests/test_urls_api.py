@@ -391,16 +391,14 @@ def test_update_url_allows_clearing_title(client):
     assert Link.get_by_id(link.id).title is None
 
 
-def test_update_url_treats_blank_title_as_cleared(client):
+def test_update_url_rejects_blank_title(client):
     create_user(1)
     link = create_link(1, title="Filled title")
 
     response = client.put(f"/urls/{link.id}", json={"title": "   "})
 
-    assert response.status_code == 200
-    payload = response.get_json()
-    assert payload["title"] is None
-    assert Link.get_by_id(link.id).title is None
+    assert response.status_code == 422
+    assert response.get_json()["error"]["message"] == "Title must be plain text."
 
 
 def test_create_url_rejects_overlong_short_code(client):
@@ -437,6 +435,22 @@ def test_create_url_allows_null_title(client):
     assert payload["user_id"] == 1
     assert payload["original_url"] == "https://example.com/test"
     assert payload["title"] is None
+
+
+def test_create_url_rejects_blank_title(client):
+    create_user(1)
+
+    response = client.post(
+        "/urls",
+        json={
+            "user_id": 1,
+            "original_url": "https://example.com/test",
+            "title": "   ",
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.get_json()["error"]["message"] == "Title must be plain text."
 
 
 def test_create_url_regenerates_when_generated_short_code_is_taken(client, monkeypatch):

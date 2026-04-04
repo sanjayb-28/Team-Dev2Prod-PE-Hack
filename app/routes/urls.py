@@ -87,6 +87,8 @@ def validate_user_reference(user_id):
 def validate_title(title):
     if title is not None and not isinstance(title, str):
         return "Title must be plain text."
+    if isinstance(title, str) and not title.strip():
+        return "Title must be plain text."
     if title is not None and len(title.strip()) > TITLE_MAX_LENGTH:
         return f"Title must be {TITLE_MAX_LENGTH} characters or fewer."
     return None
