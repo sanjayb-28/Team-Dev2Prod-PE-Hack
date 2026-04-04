@@ -1,3 +1,4 @@
+import json
 from datetime import UTC, datetime
 from urllib.parse import urlparse
 
@@ -6,7 +7,7 @@ from peewee import DoesNotExist
 from peewee import IntegrityError
 
 from app.errors import error_response
-from app.models import Link, User
+from app.models import Event, Link, User
 from app.services import record_event
 
 links_bp = Blueprint("links", __name__)
@@ -23,6 +24,23 @@ def serialize_link(link):
         "visitCount": link.visit_count,
         "createdAt": link.created_at.isoformat(),
         "updatedAt": link.updated_at.isoformat(),
+    }
+
+
+def serialize_event(event):
+    details = event.details
+    if details is not None:
+        try:
+            details = json.loads(details)
+        except json.JSONDecodeError:
+            pass
+
+    return {
+        "id": event.source_id or event.id,
+        "userId": event.user_id,
+        "eventType": event.event_type,
+        "timestamp": event.timestamp.isoformat(),
+        "details": details,
     }
 
 
@@ -101,6 +119,20 @@ def get_link(slug):
         return error_response("not_found", "We could not find that link.", 404)
 
     return jsonify(data=serialize_link(link))
+
+
+@links_bp.get("/api/links/<slug>/events")
+def list_link_events(slug):
+    link = get_link_or_none(slug)
+    if link is None:
+        return error_response("not_found", "We could not find that link.", 404)
+
+    events = (
+        Event.select()
+        .where(Event.link == link)
+        .order_by(Event.timestamp.desc(), Event.id.desc())
+    )
+    return jsonify(data={"events": [serialize_event(event) for event in events]})
 
 
 @links_bp.get("/<slug>")
