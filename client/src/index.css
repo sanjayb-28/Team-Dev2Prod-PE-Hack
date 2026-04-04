@@ -225,7 +225,6 @@ button:disabled {
 }
 
 .landing-hero,
-.landing-strip,
 .capability-band,
 .landing-detail,
 .surface-page__hero,
@@ -239,10 +238,6 @@ button:disabled {
 
 .landing-hero {
   background: #fff8f1;
-}
-
-.landing-strip {
-  background: #eef7f5;
 }
 
 .capability-band {
@@ -271,7 +266,10 @@ button:disabled {
 }
 
 .landing-hero {
-  display: block;
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(18rem, 0.72fr);
+  gap: 2rem;
+  align-items: start;
   padding: 2.4rem;
   min-height: 34rem;
   background:
@@ -283,7 +281,25 @@ button:disabled {
 .landing-hero__copy {
   display: grid;
   gap: 1rem;
-  max-width: 58rem;
+  align-content: start;
+}
+
+.landing-hero__rail {
+  display: grid;
+  gap: 1.2rem;
+  align-content: start;
+  padding-top: 0.2rem;
+}
+
+.landing-hero__rail-header {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.landing-hero__rail-header strong {
+  display: block;
+  font-size: 1.15rem;
+  line-height: 1.2;
 }
 
 .landing-hero__headline {
@@ -317,9 +333,9 @@ button:disabled {
 }
 
 .landing-hero__facts {
-  margin: 1.4rem 0 0;
+  margin: 0;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 0.8rem;
 }
 
@@ -386,29 +402,21 @@ button:disabled {
   border-color: #0f645d;
 }
 
-.landing-strip {
-  display: flex;
-  justify-content: space-between;
-  align-items: start;
-  gap: 1rem;
-  padding: 1.2rem 1.4rem;
-}
-
-.landing-strip strong {
-  display: block;
-  margin-top: 0.4rem;
-  font-size: 1.2rem;
-}
-
 .status-strip {
   margin: 0;
   display: grid;
-  grid-template-columns: repeat(3, minmax(8rem, 1fr));
-  gap: 1rem;
+  grid-template-columns: 1fr;
+  gap: 0.8rem;
+}
+
+.status-strip div {
+  padding: 0.95rem 1rem;
+  border-top: 1px solid rgba(19, 32, 51, 0.1);
 }
 
 .status-strip dd {
-  margin: 0.35rem 0 0;
+  margin: 0.28rem 0 0;
+  font-size: 1.1rem;
 }
 
 .status-strip__value--good {
@@ -1071,6 +1079,10 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 
+  .landing-hero {
+    grid-template-columns: 1fr;
+  }
+
   .workspace-grid {
     grid-template-columns: 1fr;
   }
@@ -1095,7 +1107,6 @@ button:disabled {
   }
 
   .landing-hero,
-  .landing-strip,
   .capability-band,
   .landing-detail,
   .surface-page__hero,
@@ -1103,10 +1114,6 @@ button:disabled {
   .workspace-masthead,
   .workspace-offline {
     padding: 1.2rem;
-  }
-
-  .landing-strip {
-    flex-direction: column;
   }
 
   .status-strip {

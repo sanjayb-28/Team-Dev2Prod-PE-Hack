@@ -110,6 +110,40 @@ export default function HomePage({ onNavigate }: HomePageProps) {
               View observability
             </button>
           </div>
+        </div>
+
+        <aside className="landing-hero__rail" aria-label="Live environment">
+          <div className="landing-hero__rail-header">
+            <p className="eyebrow">Live environment</p>
+            <strong>
+              {state === 'ready'
+                ? `${clusterStatus?.clusterName} / ${clusterStatus?.namespace}`
+                : state === 'error'
+                  ? 'Status unavailable'
+                  : 'Loading live status'}
+            </strong>
+          </div>
+
+          <dl className="status-strip">
+            <div>
+              <dt>Service</dt>
+              <dd className={`status-strip__value status-strip__value--${toneForStatus(clusterStatus?.workload.status)}`}>
+                {statusLabel(clusterStatus?.workload.status)}
+              </dd>
+            </div>
+            <div>
+              <dt>Control plane</dt>
+              <dd className={`status-strip__value status-strip__value--${toneForStatus(clusterStatus?.controlPlane.status)}`}>
+                {statusLabel(clusterStatus?.controlPlane.status)}
+              </dd>
+            </div>
+            <div>
+              <dt>Fault tooling</dt>
+              <dd className={`status-strip__value status-strip__value--${toneForStatus(clusterStatus?.chaosMesh.status)}`}>
+                {statusLabel(clusterStatus?.chaosMesh.status)}
+              </dd>
+            </div>
+          </dl>
 
           <dl className="landing-hero__facts">
             <div>
@@ -125,40 +159,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
               <dd>{state === 'ready' ? 'Live environment' : 'Status loading'}</dd>
             </div>
           </dl>
-        </div>
-      </section>
-
-      <section className="landing-strip">
-        <div>
-          <p className="eyebrow">Live environment</p>
-          <strong>
-            {state === 'ready'
-              ? `${clusterStatus?.clusterName} / ${clusterStatus?.namespace}`
-              : state === 'error'
-                ? 'Status unavailable'
-                : 'Loading live status'}
-          </strong>
-        </div>
-        <dl className="status-strip">
-          <div>
-            <dt>Service</dt>
-            <dd className={`status-strip__value status-strip__value--${toneForStatus(clusterStatus?.workload.status)}`}>
-              {statusLabel(clusterStatus?.workload.status)}
-            </dd>
-          </div>
-          <div>
-            <dt>Control plane</dt>
-            <dd className={`status-strip__value status-strip__value--${toneForStatus(clusterStatus?.controlPlane.status)}`}>
-              {statusLabel(clusterStatus?.controlPlane.status)}
-            </dd>
-          </div>
-          <div>
-            <dt>Fault tooling</dt>
-            <dd className={`status-strip__value status-strip__value--${toneForStatus(clusterStatus?.chaosMesh.status)}`}>
-              {statusLabel(clusterStatus?.chaosMesh.status)}
-            </dd>
-          </div>
-        </dl>
+        </aside>
       </section>
 
       <section className="capability-band">
