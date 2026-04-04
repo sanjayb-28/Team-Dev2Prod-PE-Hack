@@ -1,5 +1,5 @@
 import os
-from pathlib import Path
+from urllib.parse import urlparse
 
 from peewee import DatabaseProxy, Model, PostgresqlDatabase
 from playhouse.db_url import connect
@@ -12,9 +12,16 @@ class BaseModel(Model):
         database = db
 
 
+def is_postgres_url(database_url: str) -> bool:
+    scheme = urlparse(database_url).scheme.lower()
+    return scheme in {"postgres", "postgresql"}
+
+
 def init_db(app):
     database_url = os.environ.get("DATABASE_URL")
     if database_url:
+        if not is_postgres_url(database_url):
+            raise RuntimeError("DATABASE_URL must use a PostgreSQL connection string.")
         database = connect(database_url)
     elif os.environ.get("DATABASE_HOST") or os.environ.get("DATABASE_NAME"):
         database = PostgresqlDatabase(
@@ -25,7 +32,11 @@ def init_db(app):
             password=os.environ.get("DATABASE_PASSWORD", "postgres"),
         )
     else:
-        database = connect(f"sqlite:///{Path.cwd() / 'local.db'}")
+        raise RuntimeError(
+            "PostgreSQL configuration is required. Set DATABASE_URL or the "
+            "DATABASE_HOST, DATABASE_NAME, DATABASE_PORT, DATABASE_USER, and "
+            "DATABASE_PASSWORD variables."
+        )
     db.initialize(database)
 
     @app.before_request

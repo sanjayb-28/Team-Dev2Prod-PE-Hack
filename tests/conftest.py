@@ -1,5 +1,5 @@
+import os
 import sys
-from pathlib import Path
 
 import pytest
 
@@ -12,12 +12,21 @@ from app.database import db
 
 
 @pytest.fixture()
-def app(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
-    database_path = tmp_path / "test.db"
-    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{database_path}")
+def app(monkeypatch: pytest.MonkeyPatch):
+    database_url = os.environ.get("TEST_DATABASE_URL") or os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise RuntimeError(
+            "TEST_DATABASE_URL or DATABASE_URL must point to a PostgreSQL database."
+        )
+
+    monkeypatch.setenv("DATABASE_URL", database_url)
 
     app = create_app()
     app.config.update(TESTING=True)
+
+    db.connect(reuse_if_open=True)
+    db.execute_sql('TRUNCATE TABLE event, link, "user" RESTART IDENTITY CASCADE')
+    db.close()
 
     yield app
 
