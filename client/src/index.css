@@ -348,17 +348,20 @@ button:disabled {
   justify-content: center;
   min-height: 100%;
   border: 1px solid rgba(69, 105, 212, 0.12);
-  background: #eef2ff;
-  padding: 2rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.52), rgba(255, 255, 255, 0.08)),
+    #eef2ff;
+  padding: 1.5rem;
   overflow: hidden;
 }
 
 .hero-visual-image {
-  width: min(100%, 32rem);
+  width: min(100%, 35rem);
+  max-height: 30rem;
   height: auto;
   object-fit: contain;
-  filter: saturate(1.02) contrast(1.02);
-  transform: scale(1.02);
+  object-position: center center;
+  display: block;
 }
 
 .landing-strip {
@@ -1021,6 +1024,16 @@ button:disabled {
   .surface-page__grid,
   .workspace-masthead {
     padding: 1.2rem;
+  }
+
+  .landing-hero__visual {
+    min-height: 20rem;
+    padding: 1rem;
+  }
+
+  .hero-visual-image {
+    width: min(100%, 26rem);
+    max-height: 22rem;
   }
 
   .landing-strip {
