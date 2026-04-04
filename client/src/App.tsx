@@ -4,14 +4,14 @@ import HomePage from './pages/HomePage'
 import SurfacePage from './pages/SurfacePage'
 import WorkspacePage from './pages/WorkspacePage'
 
-type PageName = 'home' | 'workspace' | 'performance' | 'observability' | 'evidence'
+type PageName = 'home' | 'workspace' | 'performance' | 'observability' | 'operations'
 
 const pageMeta: Array<{ page: PageName; label: string; path: string }> = [
   { page: 'home', label: 'Home', path: '/' },
   { page: 'workspace', label: 'Workspace', path: '/workspace' },
   { page: 'performance', label: 'Performance', path: '/performance' },
   { page: 'observability', label: 'Observability', path: '/observability' },
-  { page: 'evidence', label: 'Evidence', path: '/evidence' },
+  { page: 'operations', label: 'Operations', path: '/operations' },
 ]
 
 function pageFromPath(pathname: string): PageName {
@@ -62,7 +62,7 @@ function renderPage(page: PageName, onNavigate: (nextPage: PageName) => void) {
       <SurfacePage
         eyebrow="Performance"
         title="Load, scale, and cache in one readable flow."
-        intro="This surface will hold the benchmark story: baseline load, scale-out proof, caching impact, and the bottleneck notes that explain where the service bends first."
+        intro="This surface will hold the benchmark story: baseline load, scale-out behavior, caching impact, and the notes that explain where the service bends first."
         summary="The goal is to present recent results clearly before exposing raw benchmark detail."
         sections={[
           {
@@ -109,22 +109,22 @@ function renderPage(page: PageName, onNavigate: (nextPage: PageName) => void) {
 
   return (
     <SurfacePage
-      eyebrow="Evidence"
-      title="Keep submission proof easy to find and easy to trust."
-      intro="This page will gather CI, coverage, recovery proof, load-test outputs, dashboard links, and operating notes without forcing judges to hunt through the repository."
-      summary="Every submission field should map cleanly to one direct piece of proof."
+      eyebrow="Operations"
+      title="Keep release, rollback, and reference material close at hand."
+      intro="This surface will gather runbooks, deploy notes, environment reference, benchmark outputs, and the links that support day-to-day operating work."
+      summary="Everything operational should stay easy to find, easy to scan, and easy to trust."
       sections={[
         {
-          title: 'Reliability proof',
-          body: 'Link the health check, CI, failure handling, recovery behavior, and fault evidence from one place.',
+          title: 'Release notes',
+          body: 'Keep deployment, rollback, and environment reference material together so operators do not need to jump between scattered files.',
         },
         {
-          title: 'Performance proof',
-          body: 'Group benchmark outputs, scale lab topology, caching notes, and the final load numbers into one obvious submission surface.',
+          title: 'Benchmark records',
+          body: 'Group scale lab outputs, cache notes, and recent load summaries into one obvious operating surface.',
         },
         {
-          title: 'Operations proof',
-          body: 'Point straight to logs, metrics, alerts, dashboards, runbooks, and decision notes with no vague labels.',
+          title: 'Reference links',
+          body: 'Point straight to logs, metrics, dashboards, runbooks, and key system notes with no vague labels.',
         },
       ]}
     />

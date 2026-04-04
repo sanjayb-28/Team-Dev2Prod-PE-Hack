@@ -41,9 +41,7 @@ html {
 body {
   margin: 0;
   min-width: 320px;
-  background:
-    radial-gradient(circle at top left, rgba(21, 115, 107, 0.06), transparent 20rem),
-    var(--page);
+  background: var(--page);
   color: var(--ink);
 }
 
@@ -99,7 +97,9 @@ button:disabled {
   height: 0.95rem;
   border-radius: 999px;
   background: var(--accent);
-  box-shadow: inset 0 0 0 0.18rem rgba(255, 255, 255, 0.6);
+  box-shadow:
+    0.28rem 0.28rem 0 0 var(--warm),
+    inset 0 0 0 0.18rem rgba(255, 255, 255, 0.6);
 }
 
 .site-brand strong,
@@ -147,15 +147,15 @@ button:disabled {
 }
 
 .site-nav__link:hover {
-  border-color: var(--line);
-  background: rgba(255, 255, 255, 0.55);
-  color: var(--ink);
+  border-color: rgba(21, 115, 107, 0.22);
+  background: #f1fbf8;
+  color: var(--accent);
 }
 
 .site-nav__link--active {
-  border-color: var(--line);
-  background: var(--surface);
-  color: var(--ink);
+  border-color: rgba(69, 105, 212, 0.18);
+  background: #f4f7ff;
+  color: #23408e;
 }
 
 .site-main {
@@ -228,9 +228,41 @@ button:disabled {
 .workspace-masthead,
 .workspace-overview,
 .workspace-grid {
-  background: var(--surface);
   border: 1px solid var(--line);
   box-shadow: var(--shadow);
+}
+
+.landing-hero {
+  background: #fff8f1;
+}
+
+.landing-strip {
+  background: #eef7f5;
+}
+
+.capability-band {
+  background: #f5f7fd;
+}
+
+.landing-detail {
+  background: #fff8ef;
+}
+
+.surface-page__hero {
+  background: #f8f5ef;
+}
+
+.surface-page__grid {
+  background: var(--surface);
+}
+
+.workspace-masthead {
+  background: #f3f7fb;
+}
+
+.workspace-overview,
+.workspace-grid {
+  background: var(--surface);
 }
 
 .landing-hero {
@@ -293,7 +325,9 @@ button:disabled {
 }
 
 .button:hover {
-  border-color: var(--line-strong);
+  border-color: rgba(216, 106, 61, 0.28);
+  background: #fff6f0;
+  color: #8a442a;
 }
 
 .button--primary {
@@ -309,59 +343,21 @@ button:disabled {
 
 .landing-hero__visual {
   display: flex;
-  align-items: stretch;
-  justify-content: stretch;
+  align-items: center;
+  justify-content: center;
   min-height: 100%;
+  border: 1px solid rgba(69, 105, 212, 0.12);
+  background: #eef2ff;
+  padding: 2rem;
+  overflow: hidden;
 }
 
-.hero-visual {
-  width: 100%;
+.hero-visual-image {
+  width: min(100%, 30rem);
   height: auto;
-  max-height: 100%;
-}
-
-.hero-visual__frame {
-  fill: #f7f5ef;
-  stroke: var(--line);
-  stroke-width: 2;
-}
-
-.hero-visual__line {
-  stroke: #b8c0cb;
-  stroke-width: 12;
-}
-
-.hero-visual__line--strong {
-  stroke: #8093a8;
-}
-
-.hero-visual__panel {
-  fill: #ffffff;
-  stroke: var(--line);
-  stroke-width: 2;
-}
-
-.hero-visual__accent {
-  stroke: var(--accent);
-  stroke-width: 10;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.hero-visual__signal {
-  fill: var(--warm);
-}
-
-.hero-visual__orb {
-  opacity: 0.92;
-}
-
-.hero-visual__orb--warm {
-  fill: var(--warm-soft);
-}
-
-.hero-visual__orb--cool {
-  fill: var(--accent-soft);
+  color: var(--ink);
+  filter: sepia(0.18) saturate(1.35) hue-rotate(158deg);
+  transform: scale(1.28);
 }
 
 .landing-strip {
@@ -430,7 +426,9 @@ button:disabled {
   background: #fffefb;
   transition:
     border-color 180ms ease,
-    transform 180ms ease;
+    transform 180ms ease,
+    background-color 180ms ease,
+    color 180ms ease;
 }
 
 .capability-tile:hover {
@@ -438,11 +436,61 @@ button:disabled {
   transform: translateY(-2px);
 }
 
+.capability-tile strong {
+  transition: color 180ms ease;
+}
+
+.capability-tile:hover strong {
+  color: var(--ink);
+}
+
 .capability-tile__index {
   color: var(--warm);
   font-size: 0.85rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
+}
+
+.capability-tile--teal {
+  background: #f3fbf9;
+}
+
+.capability-tile--teal:hover {
+  border-color: rgba(21, 115, 107, 0.28);
+  background: #eaf8f4;
+}
+
+.capability-tile--teal .capability-tile__index,
+.capability-tile--teal:hover strong {
+  color: var(--accent);
+}
+
+.capability-tile--blue {
+  background: #f4f6ff;
+}
+
+.capability-tile--blue:hover {
+  border-color: rgba(69, 105, 212, 0.24);
+  background: #edf1ff;
+}
+
+.capability-tile--blue .capability-tile__index,
+.capability-tile--blue:hover strong {
+  color: #4569d4;
+}
+
+.capability-tile--orange {
+  background: #fff5ef;
+}
+
+.capability-tile--orange:hover {
+  border-color: rgba(216, 106, 61, 0.26);
+  background: #ffefe6;
+}
+
+.capability-tile--orange .capability-tile__index,
+.capability-tile--orange:hover strong {
+  color: var(--warm);
 }
 
 .capability-tile strong,
