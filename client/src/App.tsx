@@ -1,8 +1,8 @@
 import { startTransition, useEffect, useState } from 'react'
 
+import DocumentationPage from './pages/DocumentationPage'
 import HomePage from './pages/HomePage'
 import PerformancePage from './pages/PerformancePage'
-import SurfacePage from './pages/SurfacePage'
 import WorkspacePage from './pages/WorkspacePage'
 
 type PageName = 'home' | 'workspace' | 'performance' | 'operations'
@@ -97,28 +97,7 @@ function renderPage(page: PageName, onNavigate: (nextPage: PageName) => void) {
     return <PerformancePage />
   }
 
-  return (
-    <SurfacePage
-      eyebrow="Documentation"
-      title="Keep the platform architecture, operating model, and product story in one place."
-      intro="This page explains how the product is structured, how the main surfaces relate to one another, and what the platform is designed to make visible."
-      summary="Use this area to document the platform itself: the architecture, the user model, and the core ideas behind the workspace, performance, and workload surfaces."
-      sections={[
-        {
-          title: 'Architecture',
-          body: 'Dev2Prod is organized around a client shell, a control plane, and a live application surface. The client keeps the operating picture readable, while the control plane gathers state, starts experiments, and returns the resulting evidence.',
-        },
-        {
-          title: 'Operating model',
-          body: 'Workspace focuses on controlled faults and recovery, Performance focuses on scale and cache behavior, and Documentation explains how the product is shaped. Each surface stays narrow so the platform remains easy to read.',
-        },
-        {
-          title: 'Product story',
-          body: 'The product is built to help operators understand application behavior under pressure. Instead of scattering signals across dashboards, terminals, and notes, Dev2Prod keeps the story of stress, recovery, and scale in one place.',
-        },
-      ]}
-    />
-  )
+  return <DocumentationPage />
 }
 
 export default function App() {
