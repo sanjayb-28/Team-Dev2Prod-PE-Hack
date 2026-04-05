@@ -99,6 +99,16 @@ def normalize_replica_set(item: dict) -> dict:
     }
 
 
+def is_active_replica_set(item: dict) -> bool:
+    spec = item.get("spec", {})
+    status = item.get("status", {})
+    desired = spec.get("replicas", 0)
+    ready = status.get("readyReplicas", 0)
+    available = status.get("availableReplicas", 0)
+
+    return any(value > 0 for value in (desired, ready, available))
+
+
 def normalize_pod(item: dict) -> dict:
     metadata = item.get("metadata", {})
     status = item.get("status", {})
@@ -343,7 +353,7 @@ def list_local_resources(config: dict) -> dict:
                     "kind": "deployment",
                     "name": workload_name,
                     "status": "unknown",
-                    "desiredReplicas": 1,
+                    "desiredReplicas": 3,
                     "readyReplicas": 0,
                     "availableReplicas": 0,
                     "updatedAt": None,
@@ -399,7 +409,9 @@ def load_cluster_resources(namespace: str) -> dict:
                 normalize_deployment(item) for item in deployments.get("items", [])
             ],
             "replicaSets": [
-                normalize_replica_set(item) for item in replica_sets.get("items", [])
+                normalize_replica_set(item)
+                for item in replica_sets.get("items", [])
+                if is_active_replica_set(item)
             ],
             "pods": [normalize_pod(item) for item in pods.get("items", [])],
             "services": [normalize_service(item) for item in services.get("items", [])],

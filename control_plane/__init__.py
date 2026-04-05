@@ -72,6 +72,7 @@ def build_status_payload(app: Flask) -> dict:
             "status": "ready" if app.config["CHAOS_MESH_ENABLED"] else "unavailable"
         },
         "workloadScope": {
+            "displayName": app.config["WORKLOAD_DISPLAY_NAME"],
             "deploymentName": app.config["WORKLOAD_DEPLOYMENT_NAME"],
             "serviceName": app.config["WORKLOAD_SERVICE_NAME"],
             "podPrefix": f"{app.config['WORKLOAD_DEPLOYMENT_NAME']}-",
@@ -90,6 +91,7 @@ def create_app() -> Flask:
         WORKLOAD_API_URL=os.environ.get("WORKLOAD_API_URL", "http://127.0.0.1:5000"),
         WORKLOAD_DEPLOYMENT_NAME=os.environ.get("WORKLOAD_DEPLOYMENT_NAME", "workload-api"),
         WORKLOAD_SERVICE_NAME=os.environ.get("WORKLOAD_SERVICE_NAME", "workload-api"),
+        WORKLOAD_DISPLAY_NAME=os.environ.get("WORKLOAD_DISPLAY_NAME", "URL Shortener API"),
         CONTROL_PLANE_DEPLOYMENT_NAME=os.environ.get(
             "CONTROL_PLANE_DEPLOYMENT_NAME",
             "control-plane",
@@ -175,7 +177,7 @@ def create_app() -> Flask:
     @app.get("/api/stream")
     def stream():
         one_shot = request.args.get("once") == "1"
-        interval_seconds = float(os.environ.get("CONTROL_PLANE_STREAM_INTERVAL_SECONDS", "3"))
+        interval_seconds = float(os.environ.get("CONTROL_PLANE_STREAM_INTERVAL_SECONDS", "1"))
 
         def generate():
             while True:

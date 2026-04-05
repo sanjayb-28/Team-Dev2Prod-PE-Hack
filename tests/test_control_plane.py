@@ -41,6 +41,7 @@ def test_cluster_status_reports_locked_scope(monkeypatch):
             "workload": {"status": "healthy"},
             "chaosMesh": {"status": "ready"},
             "workloadScope": {
+                "displayName": "URL Shortener API",
                 "deploymentName": "workload-api",
                 "serviceName": "workload-api",
                 "podPrefix": "workload-api-",
@@ -73,6 +74,7 @@ def test_cluster_status_surfaces_unreachable_workload(monkeypatch):
         "message": "Health check is unavailable.",
     }
     assert payload["chaosMesh"] == {"status": "unavailable"}
+    assert payload["workloadScope"]["displayName"] == "URL Shortener API"
     assert payload["workloadScope"]["deploymentName"] == "workload-api"
 
 
@@ -440,7 +442,8 @@ def test_stream_returns_cluster_snapshot(monkeypatch):
     assert response.mimetype == "text/event-stream"
     assert "event: cluster_snapshot" in body
     assert '"status": {"clusterName": "dev2prod-local"' in body
-    assert '"workloadScope": {"deploymentName": "workload-api"' in body
+    assert '"workloadScope": {"displayName": "URL Shortener API"' in body
+    assert '"deploymentName": "workload-api"' in body
 
 
 def test_control_plane_adds_client_origin_header(monkeypatch):
