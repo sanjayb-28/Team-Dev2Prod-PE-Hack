@@ -142,6 +142,18 @@ function describeCacheProof(
   }
 }
 
+function performancePresenceState(snapshot: ScaleLabSnapshot | null, state: RequestState) {
+  if (state === 'loading') {
+    return 'connecting'
+  }
+
+  if (state === 'error' || !snapshot?.enabled) {
+    return 'offline'
+  }
+
+  return 'live'
+}
+
 export default function PerformancePage() {
   const [snapshot, setSnapshot] = useState<ScaleLabSnapshot | null>(null)
   const [state, setState] = useState<RequestState>('loading')
@@ -186,6 +198,7 @@ export default function PerformancePage() {
   const runInProgress = Boolean(liveRun)
   const latestOutcome = latestRunOutcome(latestRun)
   const cacheOutcome = describeCacheProof(snapshot?.cacheProof ?? null)
+  const presenceState = performancePresenceState(snapshot, state)
 
   async function handleRun(lane: ScaleLabLane) {
     setActionState('running')
@@ -215,18 +228,28 @@ export default function PerformancePage() {
 
   return (
     <div className="performance-page">
-      <section className="performance-hero">
-        <div className="section-heading">
+      <header className="workspace-masthead performance-masthead">
+        <div className="workspace-masthead__copy">
           <p className="eyebrow">Performance</p>
           <h1>Run baseline, scale-out, and cache-burst checks from the cluster.</h1>
-          <p>
+          <p className="workspace-masthead__intro">
             The scale lab can rebalance the workload, launch a benchmark job, and bring
             the latest latency, error-rate, and throughput evidence back into this
             surface.
           </p>
         </div>
 
-        <div className="performance-hero__summary">
+        <div className="workspace-masthead__scope performance-masthead__scope">
+          <div className={`presence presence--${presenceState}`}>
+            <span className="presence__dot" />
+            <span>
+              {presenceState === 'live'
+                ? 'Scale lab live'
+                : presenceState === 'connecting'
+                  ? 'Connecting'
+                  : 'Unavailable'}
+            </span>
+          </div>
           <dl className="performance-stats">
             <div>
               <dt>Lab mode</dt>
@@ -241,10 +264,6 @@ export default function PerformancePage() {
               </dd>
             </div>
             <div>
-              <dt>Latest run</dt>
-              <dd>{latestRun ? latestRun.label : 'No benchmark run yet'}</dd>
-            </div>
-            <div>
               <dt>Cache proof</dt>
               <dd>
                 {snapshot?.cacheProof
@@ -252,9 +271,13 @@ export default function PerformancePage() {
                   : 'Waiting for cache data'}
               </dd>
             </div>
+            <div>
+              <dt>Latest run</dt>
+              <dd>{latestRun ? latestRun.label : 'No benchmark run yet'}</dd>
+            </div>
           </dl>
         </div>
-      </section>
+      </header>
 
       {state === 'error' ? (
         <section className="performance-banner performance-banner--error">
