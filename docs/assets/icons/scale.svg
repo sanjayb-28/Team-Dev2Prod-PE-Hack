@@ -1,0 +1,8 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title">
+  <title id="title">Scalability icon</title>
+  <rect x="12" y="38" width="10" height="14" rx="3" fill="#EEF4FF" stroke="#326DE6" stroke-width="2.5"/>
+  <rect x="27" y="28" width="10" height="24" rx="3" fill="#EEF4FF" stroke="#326DE6" stroke-width="2.5"/>
+  <rect x="42" y="18" width="10" height="34" rx="3" fill="#EEF4FF" stroke="#326DE6" stroke-width="2.5"/>
+  <path d="M14 24L26 18L34 24L50 12" stroke="#326DE6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M45 12H50V17" stroke="#326DE6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

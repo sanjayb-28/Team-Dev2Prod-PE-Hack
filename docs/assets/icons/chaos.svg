@@ -1,0 +1,5 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title">
+  <title id="title">Reliability icon</title>
+  <path d="M32 10L48 16V28C48 38 41.6 47.2 32 52C22.4 47.2 16 38 16 28V16L32 10Z" fill="#F2FBF7" stroke="#17714F" stroke-width="2.5"/>
+  <path d="M25 30L30 35L40 24" stroke="#17714F" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -1,0 +1,36 @@
+flowchart LR
+    U["Public users"]
+
+    subgraph C["DigitalOcean Kubernetes cluster"]
+        direction LR
+        Client["Client<br/>Landing · Workspace · Performance"]
+        Control["Control plane<br/>API-first orchestration"]
+        Workload["Reference workload<br/>URL Shortener API"]
+        Chaos["Chaos Mesh<br/>Fault injection"]
+        Scale["Scale runs<br/>k6 benchmark jobs"]
+        Redis["Redis<br/>Read cache"]
+    end
+
+    DB["Managed PostgreSQL<br/>Persistent workload data"]
+    CI["GitHub Actions<br/>Tests and deploy"]
+
+    U --> Client
+    Client --> Control
+    Client --> Workload
+    Control --> Chaos
+    Control --> Scale
+    Control --> Workload
+    Workload --> Redis
+    Workload --> DB
+    CI --> Client
+    CI --> Control
+    CI --> Workload
+
+    classDef edge fill:#F8FAFC,stroke:#CBD5E1,color:#1E293B,stroke-width:1.6px;
+    classDef product fill:#EEF4FF,stroke:#326DE6,color:#1B2840,stroke-width:2px;
+    classDef runtime fill:#F2FBF7,stroke:#17714F,color:#1B2840,stroke-width:2px;
+    classDef external fill:#FFF8EC,stroke:#C98A1A,color:#1B2840,stroke-width:2px;
+
+    class U,DB,CI edge
+    class Client,Control product
+    class Workload,Chaos,Scale,Redis runtime
