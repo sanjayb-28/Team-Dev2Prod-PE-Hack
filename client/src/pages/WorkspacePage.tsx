@@ -3,6 +3,7 @@ import {
   useDeferredValue,
   useEffect,
   useEffectEvent,
+  useRef,
   useState,
 } from 'react'
 
@@ -31,6 +32,10 @@ import type {
 type RequestState = 'loading' | 'ready' | 'error'
 type ConnectionState = 'connecting' | 'live' | 'offline'
 type FaultActionState = 'idle' | 'running' | 'error' | 'success'
+
+const EVIDENCE_EVENT_LIMIT = 4
+const NAMESPACE_EVENT_LIMIT = 5
+const LOG_LINE_LIMIT = 12
 
 const experimentActions: Array<{
   type: ExperimentTypeName
@@ -668,6 +673,10 @@ export default function WorkspacePage() {
   const [faultActionMessage, setFaultActionMessage] = useState<string | null>(null)
   const [activeFaultType, setActiveFaultType] = useState<ExperimentTypeName | null>(null)
   const [snapshotVersion, setSnapshotVersion] = useState(0)
+  const [showNamespaceActivity, setShowNamespaceActivity] = useState(false)
+  const [dismissedExperimentNames, setDismissedExperimentNames] = useState<string[]>([])
+  const lastActiveExperimentNameRef = useRef<string | null>(null)
+  const pendingStopExperimentNameRef = useRef<string | null>(null)
 
   const deferredQuery = useDeferredValue(query)
 
@@ -826,13 +835,22 @@ export default function WorkspacePage() {
       )
     : currentResources
   const displayedResource = resourceDetail ?? currentResources.find((item) => item.name === selectedName) ?? null
-  const namespaceEvents = resourceSnapshot?.events.slice(0, 6) ?? []
+  const namespaceEvents = resourceSnapshot?.events ?? []
   const experiments = resourceSnapshot?.resources.experiments ?? []
-  const activeExperiments = experiments.filter((experiment) =>
-    ['running', 'pending', 'paused'].includes(String(experiment.status ?? 'unknown')),
+  const activeExperiments = experiments.filter(
+    (experiment) =>
+      ['running', 'pending', 'paused'].includes(String(experiment.status ?? 'unknown')) &&
+      !dismissedExperimentNames.includes(String(experiment.name ?? '')),
   )
   const currentExperiment = activeExperiments[0] ?? null
-  const displayedEvidenceEvents = buildEvidenceEvents(displayedResource, resourceEvents)
+  const displayedEvidenceEvents = buildEvidenceEvents(displayedResource, resourceEvents).slice(
+    0,
+    EVIDENCE_EVENT_LIMIT,
+  )
+  const visibleNamespaceEvents = namespaceEvents.slice(
+    0,
+    showNamespaceActivity ? 10 : NAMESPACE_EVENT_LIMIT,
+  )
   const chaosReady = clusterStatus?.chaosMesh.status === 'ready'
   const workloadDeployment = getWorkloadDeployment(resourceSnapshot, clusterStatus)
   const workloadService = getWorkloadService(resourceSnapshot, clusterStatus)
@@ -860,6 +878,10 @@ export default function WorkspacePage() {
   const showDisconnectedWorkspace = pageState === 'error' && !resourceSnapshot
   const readyWorkloadPods = workloadPods.filter((pod) => pod.ready).length
   const runLocked = !canRunFaults || faultActionState === 'running' || activeExperiments.length > 0
+  const currentExperimentAction =
+    currentExperiment
+      ? experimentActions.find((action) => action.type === currentExperiment.type) ?? null
+      : null
   const activeTargetRows = [
     {
       label: 'Application',
@@ -902,6 +924,54 @@ export default function WorkspacePage() {
       })
     }
   }, [resourceSections, selectedGroup, selectedName])
+
+  useEffect(() => {
+    if (activeExperiments.length > 0) {
+      lastActiveExperimentNameRef.current = String(activeExperiments[0].name ?? '')
+      return
+    }
+
+    if (!lastActiveExperimentNameRef.current) {
+      return
+    }
+
+    const completedName = lastActiveExperimentNameRef.current
+    lastActiveExperimentNameRef.current = null
+    const stopWasRequested = pendingStopExperimentNameRef.current === completedName
+    pendingStopExperimentNameRef.current = null
+
+    if (stopWasRequested) {
+      return
+    }
+
+    startTransition(() => {
+      setActiveFaultType(null)
+      setFaultActionState('success')
+      setFaultActionMessage(`${completedName} has ended and the cluster reported recovery.`)
+    })
+  }, [activeExperiments])
+
+  useEffect(() => {
+    if (dismissedExperimentNames.length === 0) {
+      return
+    }
+
+    const liveExperiments = resourceSnapshot?.resources.experiments ?? []
+    const liveExperimentNames = new Set(
+      liveExperiments
+        .filter((experiment) =>
+          ['running', 'pending', 'paused'].includes(String(experiment.status ?? 'unknown')),
+        )
+        .map((experiment) => String(experiment.name ?? '')),
+    )
+
+    const nextDismissed = dismissedExperimentNames.filter((name) => liveExperimentNames.has(name))
+    if (nextDismissed.length !== dismissedExperimentNames.length) {
+      startTransition(() => {
+        setDismissedExperimentNames(nextDismissed)
+      })
+    }
+  }, [dismissedExperimentNames, resourceSnapshot])
 
   async function handleRunExperiment(type: ExperimentTypeName) {
     if (!activeFaultTarget) {
@@ -965,9 +1035,16 @@ export default function WorkspacePage() {
     try {
       await cancelExperiment(experimentToCancel.name)
       await refreshSnapshot()
+      pendingStopExperimentNameRef.current = experimentToCancel.name
       startTransition(() => {
+        setDismissedExperimentNames((current) =>
+          current.includes(experimentToCancel.name)
+            ? current
+            : [...current, experimentToCancel.name],
+        )
+        setActiveFaultType(null)
         setFaultActionState('success')
-        setFaultActionMessage('The selected fault run has been stopped.')
+        setFaultActionMessage('The selected fault run has been stopped. Waiting for the cluster to clear it from the feed.')
       })
     } catch (error) {
       startTransition(() => {
@@ -1237,63 +1314,110 @@ export default function WorkspacePage() {
                 </p>
               </div>
 
-              <div className="workspace-fault-grid">
-                {experimentActions.map((action) => (
-                  <article key={action.type} className="fault-card">
-                    <div className="fault-card__header">
-                      <span className="fault-card__eyebrow">Temporary fault</span>
-                      <InfoHint
-                        label={
-                          action.type === 'pod-kill'
-                            ? 'This removes one running pod so Kubernetes replaces it. Use it to see whether the app recovers cleanly.'
-                            : action.type === 'network-latency'
-                              ? 'This adds delay to requests so you can watch how the app behaves when the network slows down.'
-                            : 'This raises CPU load on the workload so you can see whether the app stays responsive under compute pressure.'
-                        }
-                      />
+              {currentExperiment ? (
+                <section className="active-fault-card">
+                  <div className="active-fault-card__header">
+                    <div>
+                      <p className="pane__eyebrow">Active drill</p>
+                      <h3>
+                        {currentExperimentAction?.label ?? formatExperimentType(currentExperiment.type)}
+                        <InfoHint label="While a drill is active, the start buttons are hidden so the page stays focused on one cluster event at a time. Stop the current drill or wait for recovery before starting the next one." />
+                      </h3>
                     </div>
-                    <span className="fault-card__title">{action.label}</span>
-                    <p className="fault-card__body">{action.helper}</p>
-                    <dl className="fault-card__facts">
-                      <div>
-                        <dt>Effect</dt>
-                        <dd>{action.impact}</dd>
-                      </div>
-                      <div>
-                        <dt>Duration</dt>
-                        <dd>{action.durationSeconds}s</dd>
-                      </div>
-                    </dl>
+                    <span
+                      className={`resource-list__status resource-list__status--${toneForStatus(
+                        String(currentExperiment.status ?? 'unknown'),
+                      )}`}
+                    >
+                      {formatStatusText(String(currentExperiment.status ?? 'unknown'))}
+                    </span>
+                  </div>
+                  <p className="active-fault-card__body">
+                    {currentExperimentAction?.helper ?? 'A live drill is changing the workload right now.'}
+                  </p>
+                  <dl className="active-fault-card__grid">
+                    <div>
+                      <dt>Fault</dt>
+                      <dd>{currentExperimentAction?.label ?? formatExperimentType(currentExperiment.type)}</dd>
+                    </div>
+                    <div>
+                      <dt>Effect</dt>
+                      <dd>{currentExperimentAction?.impact ?? 'Waiting for impact details.'}</dd>
+                    </div>
+                    <div>
+                      <dt>Target</dt>
+                      <dd>{String(currentExperiment.target ?? workloadLabel)}</dd>
+                    </div>
+                    <div>
+                      <dt>Duration</dt>
+                      <dd>
+                        {typeof currentExperiment.durationSeconds === 'number'
+                          ? `${currentExperiment.durationSeconds}s`
+                          : 'Until recovery is confirmed'}
+                      </dd>
+                    </div>
+                  </dl>
+                  <div className="active-fault-card__actions">
                     <button
                       type="button"
-                      className="button button--primary fault-card__cta"
-                      disabled={runLocked}
+                      className="button button--primary"
+                      disabled={faultActionState === 'running'}
                       onClick={() => {
-                        void handleRunExperiment(action.type)
+                        void handleCancelExperiment()
                       }}
                     >
-                      {activeFaultType === action.type && faultActionState === 'running'
-                        ? 'Starting drill'
-                        : activeExperiments.length > 0
-                          ? 'Drill in progress'
-                          : `Run ${action.label}`}
+                      {faultActionState === 'running' ? 'Stopping drill' : 'Stop active drill'}
                     </button>
-                  </article>
-                ))}
-              </div>
-
-              {currentExperiment ? (
-                <button
-                  type="button"
-                  className="action-list__secondary"
-                  disabled={faultActionState === 'running'}
-                  onClick={() => {
-                    void handleCancelExperiment()
-                  }}
-                >
-                  Stop selected experiment
-                </button>
-              ) : null}
+                    <p>
+                      The other drill buttons are hidden until this run ends so the recovery story
+                      stays clear.
+                    </p>
+                  </div>
+                </section>
+              ) : (
+                <div className="workspace-fault-grid">
+                  {experimentActions.map((action) => (
+                    <article key={action.type} className="fault-card">
+                      <div className="fault-card__header">
+                        <span className="fault-card__eyebrow">Temporary fault</span>
+                        <InfoHint
+                          label={
+                            action.type === 'pod-kill'
+                              ? 'This removes one running pod so Kubernetes replaces it. Use it to see whether the app recovers cleanly.'
+                              : action.type === 'network-latency'
+                                ? 'This adds delay to requests so you can watch how the app behaves when the network slows down.'
+                                : 'This raises CPU load on the workload so you can see whether the app stays responsive under compute pressure.'
+                          }
+                        />
+                      </div>
+                      <span className="fault-card__title">{action.label}</span>
+                      <p className="fault-card__body">{action.helper}</p>
+                      <dl className="fault-card__facts">
+                        <div>
+                          <dt>Effect</dt>
+                          <dd>{action.impact}</dd>
+                        </div>
+                        <div>
+                          <dt>Duration</dt>
+                          <dd>{action.durationSeconds}s</dd>
+                        </div>
+                      </dl>
+                      <button
+                        type="button"
+                        className="button button--primary fault-card__cta"
+                        disabled={runLocked}
+                        onClick={() => {
+                          void handleRunExperiment(action.type)
+                        }}
+                      >
+                        {activeFaultType === action.type && faultActionState === 'running'
+                          ? 'Starting drill'
+                          : `Run ${action.label}`}
+                      </button>
+                    </article>
+                  ))}
+                </div>
+              )}
 
               {faultActionMessage ? (
                 <div
@@ -1361,113 +1485,156 @@ export default function WorkspacePage() {
             </aside>
           </section>
 
-          <section className="workspace-inspector">
-            <div className="pane__header workspace-inspector__header">
-            <p className="pane__eyebrow">Selected resource</p>
-            <h2>{displayedResource?.name ?? 'Choose a resource'}</h2>
-            <p className="pane__copy">
-              {displayedResource
-                ? summarizeResource(displayedResource)
-                : 'Pick a deployment, pod, service, or experiment to inspect it.'}
-            </p>
-            </div>
+          <section className="workspace-detail-grid">
+            <article className="workspace-inspector workspace-inspector--resource">
+              <div className="pane__header workspace-inspector__header">
+                <p className="pane__eyebrow">Selected resource</p>
+                <h2>{displayedResource?.name ?? 'Choose a resource'}</h2>
+                <p className="pane__copy">
+                  {displayedResource
+                    ? summarizeResource(displayedResource)
+                    : 'Pick a deployment, pod, service, or experiment to inspect it.'}
+                </p>
+              </div>
 
-            {displayedResource ? (
-              <>
-                <dl className="detail-grid">
-                  {buildResourceRows(displayedResource).map((row) => (
-                    <div key={row.label}>
-                      <dt>{row.label}</dt>
-                      <dd>{row.value}</dd>
+              {displayedResource ? (
+                <>
+                  <dl className="detail-grid">
+                    {buildResourceRows(displayedResource).map((row) => (
+                      <div key={row.label}>
+                        <dt>{row.label}</dt>
+                        <dd>{row.value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+
+                  {inspectorNotice ? <div className="message">{inspectorNotice}</div> : null}
+                  {!selectedResourceIsInScope && displayedResource.kind !== 'experiment' ? (
+                    <div className="message">
+                      You are inspecting {displayedResource.name}. Fault actions remain locked to{' '}
+                      {activeFaultTarget?.name ?? workloadLabel} so the demo target stays clear.
                     </div>
-                  ))}
-                </dl>
+                  ) : null}
+                </>
+              ) : (
+                <p className="empty-state workspace-empty-state">
+                  The namespace is reachable, but there is nothing to inspect yet.
+                </p>
+              )}
+            </article>
 
-                {inspectorNotice ? <div className="message">{inspectorNotice}</div> : null}
-                {!selectedResourceIsInScope && displayedResource.kind !== 'experiment' ? (
-                  <div className="message">
-                    You are inspecting {displayedResource.name}. Fault actions remain locked to{' '}
-                    {activeFaultTarget?.name ?? workloadLabel} so the demo target stays clear.
-                  </div>
-                ) : null}
+            <article className="workspace-inspector workspace-inspector--evidence">
+              <div className="pane__header workspace-inspector__header">
+                <p className="pane__eyebrow">Evidence and logs</p>
+                <h2>
+                  Live proof feed
+                  <InfoHint label="This feed shows the clearest recent proof for the selected resource: what the cluster reported and what the workload logged. It stays short on purpose so the signal is readable during a demo." />
+                </h2>
+                <p className="pane__copy">
+                  {displayedResource
+                    ? 'The right-hand feed stays focused on only the most useful recent evidence.'
+                    : 'Select a resource to unlock the live evidence feed.'}
+                </p>
+              </div>
 
-                <details className="detail-collapsible" open>
-                  <summary className="detail-collapsible__summary">
-                    <span>
-                      Evidence and logs
-                      <InfoHint label="Evidence is the plain-language proof of what changed. It combines recent cluster events with the latest matching workload logs." />
-                    </span>
-                    <small>{displayedEvidenceEvents.length} recent events</small>
-                  </summary>
-                  <div className="detail-collapsible__body">
-                    <section className="detail-events">
-                      <div className="detail-events__header">
-                        <h3>Evidence</h3>
-                        <p>{describeEvidence(displayedResource, inspectorState)}</p>
-                      </div>
+              {displayedResource ? (
+                <div className="workspace-evidence-grid">
+                  <section className="detail-events">
+                    <div className="detail-events__header">
+                      <h3>Evidence</h3>
+                      <p>{describeEvidence(displayedResource, inspectorState)}</p>
+                    </div>
 
-                      {displayedEvidenceEvents.length === 0 ? (
-                        <p className="empty-state">No recent events for this resource.</p>
-                      ) : (
-                        <ul className="event-list">
-                          {displayedEvidenceEvents.map((event, index) => (
-                            <li key={`${event.name ?? event.reason ?? 'event'}-${index}`}>
-                              <strong>{event.reason ?? event.type ?? 'Status update'}</strong>
-                              <p>{event.message ?? 'The cluster reported a state change without extra notes.'}</p>
-                              <span>{formatUpdatedAt(event.timestamp)}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </section>
-
-                    <section className="detail-events detail-events--logs">
-                      <div className="detail-events__header">
-                        <h3>Logs</h3>
-                        <p>{describeLogs(displayedResource, resourceLogs)}</p>
-                      </div>
-
-                      {!resourceLogs || resourceLogs.entries.length === 0 ? (
-                        <p className="empty-state">{describeEmptyLogs(displayedResource)}</p>
-                      ) : (
-                        <pre className="log-block">
-                          {resourceLogs.entries.slice(-20).map((entry, index) => (
-                            <code key={`${index}-${entry.line}`}>{entry.line}</code>
-                          ))}
-                        </pre>
-                      )}
-                    </section>
-                  </div>
-                </details>
-
-                <details className="detail-collapsible">
-                  <summary className="detail-collapsible__summary">
-                    <span>
-                      Namespace activity
-                      <InfoHint label="Namespace activity is the recent cluster-wide event feed for this demo scope. It helps you see what else changed around the selected resource." />
-                    </span>
-                    <small>{namespaceEvents.length} recent updates</small>
-                  </summary>
-                  <div className="detail-collapsible__body">
-                    {namespaceEvents.length === 0 ? (
-                      <p className="empty-state">No namespace events yet.</p>
+                    {displayedEvidenceEvents.length === 0 ? (
+                      <p className="empty-state">No recent events for this resource.</p>
                     ) : (
-                      <ul className="event-list event-list--compact">
-                        {namespaceEvents.map((event, index) => (
-                          <li key={`${event.name ?? event.reason ?? 'namespace-event'}-${index}`}>
-                            <strong>{event.resourceName ?? 'Cluster event'}</strong>
-                            <p>{event.reason ?? 'Update'}</p>
+                      <ul className="event-list">
+                        {displayedEvidenceEvents.map((event, index) => (
+                          <li key={`${event.name ?? event.reason ?? 'event'}-${index}`}>
+                            <strong>{event.reason ?? event.type ?? 'Status update'}</strong>
+                            <p>{event.message ?? 'The cluster reported a state change without extra notes.'}</p>
                             <span>{formatUpdatedAt(event.timestamp)}</span>
                           </li>
                         ))}
                       </ul>
                     )}
-                  </div>
-                </details>
-              </>
+                  </section>
+
+                  <section className="detail-events detail-events--logs">
+                    <div className="detail-events__header">
+                      <h3>Logs</h3>
+                      <p>{describeLogs(displayedResource, resourceLogs)}</p>
+                    </div>
+
+                    {!resourceLogs || resourceLogs.entries.length === 0 ? (
+                      <p className="empty-state">{describeEmptyLogs(displayedResource)}</p>
+                    ) : (
+                      <pre className="log-block">
+                        {resourceLogs.entries.slice(-LOG_LINE_LIMIT).map((entry, index) => (
+                          <code key={`${index}-${entry.line}`}>{entry.line}</code>
+                        ))}
+                      </pre>
+                    )}
+                  </section>
+                </div>
+              ) : (
+                <p className="empty-state workspace-empty-state">
+                  Select a resource to load recent cluster evidence and matching workload logs.
+                </p>
+              )}
+            </article>
+          </section>
+
+          <section className="workspace-activity-card">
+            <div className="workspace-activity-card__header">
+              <div className="workspace-section-heading">
+                <p className="pane__eyebrow">Namespace activity</p>
+                <h2>
+                  Recent cluster updates
+                  <InfoHint label="Namespace activity is the compact cluster-wide feed for this demo scope. It gives you the top recent changes without flooding the page with every single event." />
+                </h2>
+                <p className="pane__copy">
+                  Only the newest updates are shown here so the page stays readable while a drill
+                  is running.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className="button button--secondary workspace-activity-card__toggle"
+                onClick={() => setShowNamespaceActivity((current) => !current)}
+              >
+                {showNamespaceActivity ? 'Collapse feed' : 'Show feed'}
+              </button>
+            </div>
+
+            {showNamespaceActivity ? (
+              visibleNamespaceEvents.length === 0 ? (
+                <p className="empty-state workspace-empty-state">No namespace events yet.</p>
+              ) : (
+                <>
+                  <ul className="event-list event-list--compact">
+                    {visibleNamespaceEvents.map((event, index) => (
+                      <li key={`${event.name ?? event.reason ?? 'namespace-event'}-${index}`}>
+                        <strong>{event.resourceName ?? 'Cluster event'}</strong>
+                        <p>
+                          {event.reason ?? 'Update'}
+                          {event.message ? ` • ${event.message}` : ''}
+                        </p>
+                        <span>{formatUpdatedAt(event.timestamp)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  {namespaceEvents.length > visibleNamespaceEvents.length ? (
+                    <p className="workspace-activity-card__note">
+                      Showing the latest {visibleNamespaceEvents.length} namespace updates.
+                    </p>
+                  ) : null}
+                </>
+              )
             ) : (
-              <p className="empty-state">
-                The namespace is reachable, but there is nothing to inspect yet.
+              <p className="workspace-activity-card__note">
+                Open the feed when you want wider cluster context around the selected resource.
               </p>
             )}
           </section>
