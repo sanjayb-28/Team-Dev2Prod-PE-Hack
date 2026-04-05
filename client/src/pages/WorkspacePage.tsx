@@ -153,11 +153,7 @@ function buildEvidenceEvents(resource: ResourceRecord | null, events: ClusterEve
   return events.slice(0, 5)
 }
 
-function describeEvidence(resource: ResourceRecord | null, inspectorState: RequestState) {
-  if (inspectorState === 'loading') {
-    return 'Refreshing recent events.'
-  }
-
+function describeEvidence(resource: ResourceRecord | null) {
   if (resource?.kind !== 'experiment') {
     return 'Recent events attached to the selected resource.'
   }
@@ -167,6 +163,18 @@ function describeEvidence(resource: ResourceRecord | null, inspectorState: Reque
   }
 
   return 'Cluster events that show how this fault is being applied right now.'
+}
+
+function describeEvidenceFeedState(inspectorState: RequestState) {
+  if (inspectorState === 'loading') {
+    return { label: 'Fetching', tone: 'warn' as const }
+  }
+
+  if (inspectorState === 'error') {
+    return { label: 'Retrying', tone: 'bad' as const }
+  }
+
+  return { label: 'Live', tone: 'good' as const }
 }
 
 function describeLogs(resource: ResourceRecord | null, logs: ResourceLogRecord | null) {
@@ -866,6 +874,7 @@ export default function WorkspacePage() {
   const workloadLabel = clusterStatus?.workloadScope.displayName ?? 'the workload'
   const workloadSystemName = clusterStatus?.workloadScope.deploymentName ?? 'workload-api'
   const inspectorNotice = buildInspectorNotice(displayedResource, clusterStatus)
+  const evidenceFeedState = describeEvidenceFeedState(inspectorState)
   const rolloutWatch = buildRolloutWatch(resourceSnapshot, clusterStatus, displayedResource)
   const faultStage = describeFaultStage(currentExperiment)
   const resilienceProof = buildResilienceProof(
@@ -1000,6 +1009,7 @@ export default function WorkspacePage() {
         parameters: action.parameters,
       })
 
+      lastActiveExperimentNameRef.current = response.data.name
       await refreshSnapshot()
       startTransition(() => {
         setSelectedGroup('experiments')
@@ -1541,8 +1551,15 @@ export default function WorkspacePage() {
                 <div className="workspace-evidence-grid">
                   <section className="detail-events">
                     <div className="detail-events__header">
-                      <h3>Evidence</h3>
-                      <p>{describeEvidence(displayedResource, inspectorState)}</p>
+                      <div className="detail-events__title">
+                        <h3>Evidence</h3>
+                        <span
+                          className={`detail-events__status detail-events__status--${evidenceFeedState.tone}`}
+                        >
+                          {evidenceFeedState.label}
+                        </span>
+                      </div>
+                      <p>{describeEvidence(displayedResource)}</p>
                     </div>
 
                     {displayedEvidenceEvents.length === 0 ? (
