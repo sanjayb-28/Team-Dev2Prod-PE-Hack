@@ -747,8 +747,15 @@ button:disabled {
 .performance-grid,
 .performance-layout {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
   background: var(--surface);
+}
+
+.performance-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.performance-layout {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .performance-panel {
@@ -774,21 +781,25 @@ button:disabled {
 }
 
 .performance-panel--spotlight {
-  grid-column: 1 / -1;
-  width: min(100%, 46rem);
-  justify-self: center;
-  text-align: center;
-  border-right: 0;
-  background: linear-gradient(180deg, #fffefb, #f7fbff);
+  position: relative;
+  background: linear-gradient(180deg, #fffefb, #f8fbff);
+}
+
+.performance-panel--spotlight::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: linear-gradient(90deg, rgba(21, 115, 107, 0.55), rgba(50, 109, 230, 0.42));
 }
 
 .performance-panel--spotlight .performance-lane-stats {
-  justify-self: center;
-  width: min(100%, 24rem);
+  justify-self: stretch;
+  width: auto;
 }
 
 .performance-panel--spotlight .button {
-  justify-self: center;
+  justify-self: start;
 }
 
 .performance-outcome {
@@ -1673,8 +1684,48 @@ button:disabled {
   padding-top: 0.5rem;
 }
 
+.detail-events__title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
 .detail-events__header h3 {
   font-size: 1.32rem;
+}
+
+.detail-events__status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1.8rem;
+  padding: 0 0.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: #fffefb;
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.detail-events__status--good {
+  border-color: rgba(23, 113, 79, 0.22);
+  color: var(--good);
+  background: #eef8f2;
+}
+
+.detail-events__status--warn {
+  border-color: rgba(177, 130, 50, 0.22);
+  color: var(--warn);
+  background: #fff7e9;
+}
+
+.detail-events__status--bad {
+  border-color: rgba(177, 77, 54, 0.24);
+  color: var(--bad);
+  background: #fbefeb;
 }
 
 .event-list {
