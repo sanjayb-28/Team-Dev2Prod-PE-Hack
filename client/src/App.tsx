@@ -14,7 +14,7 @@ const pageMeta: InternalNavEntry[] = [
   { kind: 'internal', page: 'home', label: 'Home', path: '/' },
   { kind: 'internal', page: 'workspace', label: 'Workspace', path: '/workspace' },
   { kind: 'internal', page: 'performance', label: 'Performance', path: '/performance' },
-  { kind: 'internal', page: 'operations', label: 'Operations', path: '/operations' },
+  { kind: 'internal', page: 'operations', label: 'Documentation', path: '/operations' },
 ]
 
 const navEntries: Array<InternalNavEntry | ExternalNavEntry> = [
@@ -99,22 +99,22 @@ function renderPage(page: PageName, onNavigate: (nextPage: PageName) => void) {
 
   return (
     <SurfacePage
-      eyebrow="Operations"
-      title="Keep reference material and platform context in one quieter support surface."
-      intro="This page holds the lower-frequency material that supports the main workflows: release context, environment notes, and the links that help people orient quickly."
-      summary="Use this area for supporting context, not as another primary workflow."
+      eyebrow="Documentation"
+      title="Keep the platform architecture, operating model, and product story in one place."
+      intro="This page explains how the control plane, workload surface, and scale lab fit together so the product stays understandable beyond the live workflows."
+      summary="Use this area to document how the platform is shaped, what it is optimized to show, and how the current live cluster maps onto the broader product model."
       sections={[
         {
-          title: 'Release context',
-          body: 'Keep deployment notes, environment references, and the rollout path together so people do not need to hunt across the product.',
+          title: 'Architecture',
+          body: 'The platform combines a client surface, a control plane, and a workload running in the cluster. The control plane reads cluster state, starts controlled experiments, and returns the evidence back to the client.',
         },
         {
-          title: 'Supporting proof',
-          body: 'Use this area for low-frequency supporting material like benchmark records, links, and operating notes that should not clutter the main pages.',
+          title: 'Operating model',
+          body: 'Workspace focuses on controlled faults and recovery, while Performance focuses on scale, cache behavior, and benchmark evidence. Each surface stays narrow so the system story stays readable.',
         },
         {
-          title: 'Reference links',
-          body: 'Point straight to the useful references with plain labels so the user can move from the product into the supporting material without guessing.',
+          title: 'Product story',
+          body: 'The live cluster is intentionally scoped for safe testing, but the product model is broader: point the platform at cluster workloads, observe behavior under stress, and keep the evidence legible for operators.',
         },
       ]}
     />
@@ -164,7 +164,7 @@ export default function App() {
           <img src="/favicon.png" alt="" className="site-brand__mark" />
           <span>
             <strong>Dev2Prod</strong>
-            <small>Resilience and scale workspace</small>
+            <small>Cluster resilience workspace</small>
           </span>
         </a>
 

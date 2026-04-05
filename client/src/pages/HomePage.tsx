@@ -14,19 +14,19 @@ interface HomePageProps {
 const capabilityGroups = [
   {
     title: 'Workspace',
-    body: 'Run a controlled fault, follow the active target, and watch the system settle back into shape.',
+    body: 'Start a controlled fault, follow the active target, and watch the system move back toward a steady state.',
     page: 'workspace' as const,
     tone: 'teal',
   },
   {
     title: 'Performance',
-    body: 'Compare baseline, scale-out, and cache behavior in one place without burying the story in raw load output.',
+    body: 'Compare baseline, scale-out, and cache behavior in one place without digging through raw benchmark output.',
     page: 'performance' as const,
     tone: 'blue',
   },
   {
-    title: 'Operations',
-    body: 'Keep the supporting notes, references, and platform context close without crowding the main workflows.',
+    title: 'Documentation',
+    body: 'Keep the platform architecture, operating model, and supporting context close without crowding the main workflows.',
     page: 'operations' as const,
     tone: 'orange',
   },
@@ -87,13 +87,13 @@ export default function HomePage({ onNavigate }: HomePageProps) {
         <div className="landing-hero__copy">
           <p className="eyebrow">Dev2Prod</p>
           <h1 className="landing-hero__headline">
-            <span>Follow application behavior</span>
-            <span className="landing-hero__headline-fill">from fault drills to scale checks.</span>
+            <span>Cluster resilience engine</span>
+            <span className="landing-hero__headline-fill">for faults, recovery, and scale.</span>
           </h1>
           <p className="landing-hero__intro">
-            Keep the live platform readable while it is being stressed, scaled, and recovered.
-            The current demo is pinned to one guarded cluster target today, but the product
-            model is broader than this single path.
+            Run controlled disruptions, compare cluster behavior under load, and keep the
+            operating picture readable while the system is under pressure. Dev2Prod keeps
+            fault testing, recovery signals, and scale evidence in one operating surface.
           </p>
           <div className="landing-hero__actions">
             <button
@@ -110,18 +110,12 @@ export default function HomePage({ onNavigate }: HomePageProps) {
             >
               Open performance
             </button>
-            <a
-              className="button"
-              href="/shortener/"
-            >
-              Open shortener
-            </a>
           </div>
         </div>
 
         <aside className="landing-hero__rail" aria-label="Live environment">
           <div className="landing-hero__rail-header">
-            <p className="eyebrow">Live environment</p>
+            <p className="eyebrow">Active cluster</p>
             <strong>
               {state === 'ready'
                 ? `${clusterStatus?.clusterName} / ${clusterStatus?.namespace}`
@@ -154,12 +148,12 @@ export default function HomePage({ onNavigate }: HomePageProps) {
 
           <dl className="landing-hero__facts">
             <div>
-              <dt>Current demo</dt>
-              <dd>One guarded target in one live cluster</dd>
+              <dt>Scope</dt>
+              <dd>Live cluster with one guarded fault path enabled</dd>
             </div>
             <div>
               <dt>Focus</dt>
-              <dd>Fault drills, recovery, and scale checks</dd>
+              <dd>Cluster failure testing, recovery, and scale verification</dd>
             </div>
             <div>
               <dt>Mode</dt>
@@ -172,10 +166,10 @@ export default function HomePage({ onNavigate }: HomePageProps) {
       <section className="capability-band">
         <div className="section-heading">
           <p className="eyebrow">Core surfaces</p>
-          <h2>Three focused surfaces and one live demo workload.</h2>
+          <h2>Three focused surfaces around one cluster operating picture.</h2>
           <p>
             Each surface carries one job, keeps the next action obvious, and stays anchored
-            to the same running system.
+            to the same live cluster state.
           </p>
         </div>
 
@@ -200,29 +194,29 @@ export default function HomePage({ onNavigate }: HomePageProps) {
       <section className="landing-detail">
         <div className="section-heading">
           <p className="eyebrow">Platform shape</p>
-          <h2>Scoped tightly for the demo, but framed like a broader operating product.</h2>
+          <h2>Built to make cluster behavior legible before production does it for you.</h2>
         </div>
 
         <div className="detail-columns">
           <div>
-            <strong>Guided fault flow</strong>
+            <strong>Controlled disruption</strong>
             <p>
-              Keep the live fault path intact, but make it readable enough for someone opening
-              the product for the first time.
+              Start a fault on purpose, keep the target clear, and follow the cluster
+              recovery path without losing the surrounding system context.
             </p>
           </div>
           <div>
             <strong>Performance in context</strong>
             <p>
-              Benchmarks, scale-out, and caching should read like a clear system story, not
-              like a wall of terminal output.
+              Benchmarks, scale-out, and cache behavior should read like one coherent
+              cluster story, not like a wall of terminal output.
             </p>
           </div>
           <div>
-            <strong>Locked, not limited</strong>
+            <strong>General operating model</strong>
             <p>
-              The current live target is intentionally constrained so the demo stays stable,
-              but the product language should still point beyond that guardrail.
+              The live environment stays tightly scoped today, but the platform model is
+              broader: observe, stress, and verify cluster behavior in one place.
             </p>
           </div>
         </div>
