@@ -162,12 +162,12 @@ That leaves room for:
 - a CLI client later
 - other interfaces without rewriting the platform core
 
-## Relevant Reading
+## Meta Engineering Articles That Closely Relate
 
-Two Meta Engineering articles are especially close to the spirit of this project:
+Two Meta Engineering articles that closely relate to the direction of this project:
 
 - [Scaling services with Shard Manager](https://engineering.fb.com/2020/08/24/production-engineering/scaling-services-with-shard-manager/)
-- [FOQS: Making a distributed priority queue disaster-ready](https://engineering.fb.com/2022/01/18/production-engineering/foqs-disaster-ready/)
+- [BellJar: A new framework for testing system recoverability at scale](https://engineering.fb.com/2022/05/05/developer-tools/belljar/)
 
 They are not direct implementation templates here. They are useful examples of treating scale and resilience as real operational problems that deserve product-quality explanation.
 

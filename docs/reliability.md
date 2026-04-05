@@ -45,8 +45,20 @@ flowchart LR
 
 Source: [reliability-flow.mmd](assets/diagrams/reliability-flow.mmd)
 
-> Screenshot placeholder: workspace during active pod restart  
-> Screenshot placeholder: resilience proof and recovery watch
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <img src="assets/screenshots/workspace-active-drill.png" alt="Workspace during an active pod restart drill" />
+      <br />
+      <sub><strong>Active drill</strong>: the fault action, current service state, and recovery story are visible at once.</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="assets/screenshots/workspace-evidence.png" alt="Workspace evidence and logs view" />
+      <br />
+      <sub><strong>Evidence and logs</strong>: events and workload logs stay attached to the selected drill.</sub>
+    </td>
+  </tr>
+</table>
 
 ## Fault Types
 

@@ -90,3 +90,104 @@ Typical cases:
 - `404` for missing users, URLs, links, or resources
 - `409` for conflicts such as duplicate usernames or duplicate short codes
 - `422` for malformed or invalid input
+
+## Example Requests And Responses
+
+### `GET /health`
+
+```http
+GET /health
+```
+
+```json
+{
+  "status": "ok"
+}
+```
+
+### `POST /urls`
+
+```http
+POST /urls
+Content-Type: application/json
+```
+
+```json
+{
+  "user_id": 1,
+  "original_url": "https://example.com/test",
+  "title": "Test URL"
+}
+```
+
+```json
+{
+  "id": 3,
+  "user_id": 1,
+  "short_code": "k8Jd9s",
+  "original_url": "https://example.com/test",
+  "title": "Test URL",
+  "is_active": true,
+  "visit_count": 0,
+  "created_at": "2026-04-03T12:00:00",
+  "updated_at": "2026-04-03T12:00:00"
+}
+```
+
+### `GET /events?event_type=click`
+
+```http
+GET /events?event_type=click
+```
+
+```json
+[
+  {
+    "id": 13,
+    "url_id": 1,
+    "user_id": 1,
+    "event_type": "click",
+    "timestamp": "2026-04-04T22:46:48",
+    "details": {
+      "referrer": "https://google.com"
+    }
+  }
+]
+```
+
+### `POST /api/experiments`
+
+```http
+POST /api/experiments
+Content-Type: application/json
+```
+
+```json
+{
+  "type": "cpu-stress",
+  "target": {
+    "kind": "deployment",
+    "name": "workload-api"
+  },
+  "durationSeconds": 60,
+  "parameters": {
+    "cpuLoad": 80
+  }
+}
+```
+
+```json
+{
+  "data": {
+    "kind": "experiment",
+    "type": "cpu-stress",
+    "name": "cpu-stress-025e18",
+    "status": "running",
+    "targetKind": "deployment",
+    "target": "workload-api",
+    "updatedAt": "2026-04-04T15:59:17Z",
+    "durationSeconds": 60,
+    "cpuLoad": 80
+  }
+}
+```
