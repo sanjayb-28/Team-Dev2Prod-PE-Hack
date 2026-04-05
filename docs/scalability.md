@@ -43,8 +43,20 @@ flowchart LR
 
 Source: [scalability-flow.mmd](assets/diagrams/scalability-flow.mmd)
 
-> Screenshot placeholder: performance page with benchmark lanes  
-> Screenshot placeholder: Gold cache burst result and cache proof
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <img src="assets/screenshots/performance-lanes.png" alt="Performance page benchmark lanes" />
+      <br />
+      <sub><strong>Benchmark lanes</strong>: Bronze, Silver, and Gold expose different traffic and scaling conditions.</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="assets/screenshots/performance-latest-result.png" alt="Performance latest result and cache proof" />
+      <br />
+      <sub><strong>Latest result</strong>: cache proof, latency, error rate, and throughput stay in one evidence block.</sub>
+    </td>
+  </tr>
+</table>
 
 ## Benchmark Lanes
 

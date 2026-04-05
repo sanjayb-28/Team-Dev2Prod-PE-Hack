@@ -32,6 +32,35 @@ The safest rollback is a code rollback, not a manual cluster mutation.
 
 This keeps the release history truthful and leaves the repo and cluster in the same state.
 
+## Rollback Example
+
+If a bad change reaches `main`, the clean rollback path is:
+
+1. identify the merge commit or direct commit that introduced the regression
+2. create a revert on top of `main`
+3. push the revert and let `Tests and Gate` rerun
+4. let the deploy workflow publish the reverted image set
+
+Example:
+
+```bash
+git checkout main
+git pull origin main
+git revert <bad_commit_sha>
+git push origin main
+```
+
+If the regression came from a merged pull request, use the merge commit SHA for the revert.
+
+## What To Verify After Rollback
+
+- the workload `/health` endpoint returns `{"status":"ok"}`
+- the landing page loads
+- the reference workload page loads
+- the Workspace and Performance pages load
+- the `workload-api`, `control-plane`, and `client` deployments are healthy after rollout
+- the latest deployed image tag matches the reverted release path rather than the bad one
+
 ## Required Delivery Secrets
 
 - `DIGITALOCEAN_ACCESS_TOKEN`

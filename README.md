@@ -1,9 +1,5 @@
 # Dev2Prod
 
-<p align="center">
-  <img src="docs/assets/icons/api.svg" alt="Dev2Prod platform icon" width="38" />
-</p>
-
 <p align="center"><strong>Controlled chaos and scale lab for Kubernetes workloads</strong></p>
 
 <p align="center">
@@ -11,15 +7,26 @@
   watch what recovers, and understand where the system bends before production has to teach the lesson the hard way.
 </p>
 
-<p align="center">
-  <a href="https://dev2prod.sanjaybaskaran.dev"><strong>Landing</strong></a>
-  &nbsp;·&nbsp;
-  <a href="https://dev2prod.sanjaybaskaran.dev/shortener/"><strong>Reference workload</strong></a>
-  &nbsp;·&nbsp;
-  <a href="https://dev2prod.sanjaybaskaran.dev/workspace">Workspace</a>
-  &nbsp;·&nbsp;
-  <a href="https://dev2prod.sanjaybaskaran.dev/performance">Performance</a>
-</p>
+<table align="center">
+  <tr>
+    <td align="center" width="160">
+      <a href="https://dev2prod.sanjaybaskaran.dev"><strong>Landing</strong></a><br/>
+      <sub>product overview</sub>
+    </td>
+    <td align="center" width="190">
+      <a href="https://dev2prod.sanjaybaskaran.dev/shortener/"><strong>Reference workload</strong></a><br/>
+      <sub>live proof surface</sub>
+    </td>
+    <td align="center" width="160">
+      <a href="https://dev2prod.sanjaybaskaran.dev/workspace"><strong>Workspace</strong></a><br/>
+      <sub>reliability flow</sub>
+    </td>
+    <td align="center" width="160">
+      <a href="https://dev2prod.sanjaybaskaran.dev/performance"><strong>Performance</strong></a><br/>
+      <sub>scale lab</sub>
+    </td>
+  </tr>
+</table>
 
 | ![Reliability icon](docs/assets/icons/chaos.svg) | ![Scalability icon](docs/assets/icons/scale.svg) | ![Platform icon](docs/assets/icons/api.svg) |
 | --- | --- | --- |
@@ -87,9 +94,25 @@ Secondary operator surfaces:
 - Workspace: [dev2prod.sanjaybaskaran.dev/workspace](https://dev2prod.sanjaybaskaran.dev/workspace)
 - Performance: [dev2prod.sanjaybaskaran.dev/performance](https://dev2prod.sanjaybaskaran.dev/performance)
 
-> Screenshot placeholder: landing page overview  
-> Screenshot placeholder: workspace reliability flow  
-> Screenshot placeholder: performance scale-lab result
+<table>
+  <tr>
+    <td align="center" width="33%">
+      <img src="docs/assets/screenshots/home-hero.png" alt="Dev2Prod landing page" />
+      <br />
+      <sub><strong>Landing</strong>: product framing, cluster status, and the main entry points.</sub>
+    </td>
+    <td align="center" width="33%">
+      <img src="docs/assets/screenshots/workspace-hero.png" alt="Workspace page" />
+      <br />
+      <sub><strong>Workspace</strong>: guided faults, active target context, and recovery visibility.</sub>
+    </td>
+    <td align="center" width="33%">
+      <img src="docs/assets/screenshots/performance-hero.png" alt="Performance page" />
+      <br />
+      <sub><strong>Performance</strong>: benchmark lanes, workload scale, and live cache proof.</sub>
+    </td>
+  </tr>
+</table>
 
 ## Quick Start
 
@@ -141,7 +164,7 @@ It gives the platform something concrete to keep alive, slow down, or scale arou
 
 ## Documentation Quest Coverage
 
-| Tier | What the manual needs to show | Where it lives |
+| Tier | Documentation focus | Where it lives |
 | --- | --- | --- |
 | Bronze | Clear README, architecture diagram, API docs | This README, [docs/platform.md](docs/platform.md), [docs/api.md](docs/api.md) |
 | Silver | Deploy guide, rollback path, troubleshooting, config | [docs/deploy.md](docs/deploy.md), [docs/troubleshooting.md](docs/troubleshooting.md), [docs/config.md](docs/config.md) |
@@ -217,11 +240,11 @@ Implementation references:
 - [DigitalOcean delivery](infra/digitalocean/README.md)
 - [Local stack](infra/local/README.md)
 
-## Relevant Reading
+## Meta Engineering Articles That Closely Relate
 
-Two Meta Engineering pieces that informed the tone of this project:
+Two Meta Engineering articles that closely relate to the direction of this project:
 
 - [Scaling services with Shard Manager](https://engineering.fb.com/2020/08/24/production-engineering/scaling-services-with-shard-manager/)
-- [FOQS: Making a distributed priority queue disaster-ready](https://engineering.fb.com/2022/01/18/production-engineering/foqs-disaster-ready/)
+- [BellJar: A new framework for testing system recoverability at scale](https://engineering.fb.com/2022/05/05/developer-tools/belljar/)
 
 They are not the blueprint for Dev2Prod, but they are useful examples of treating scale and resilience as real production problems rather than abstract exercises.
