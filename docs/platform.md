@@ -69,6 +69,17 @@ flowchart LR
 
 Source: [platform-overview.mmd](assets/diagrams/platform-overview.mmd)
 
+## Runtime Foundation
+
+Under the hood, the live platform depends on a few core pieces:
+
+- **DigitalOcean Kubernetes** hosts the client, control plane, reference workload, and cache layer.
+- **DigitalOcean Managed PostgreSQL** stores the workload data and stays outside the pod lifecycle.
+- **Redis** supports the cache-aware scalability lane and remains separate from the system-of-record database.
+- **GitHub Actions** gates releases and drives the delivery workflow into the cluster.
+
+One technical detail that matters to the user experience is how the control plane talks to the client. The client does not read raw cluster state directly. The control plane translates workload, resource, and experiment state into client-ready snapshots and pushes them over **Server-Sent Events**, which is what keeps the Workspace and Performance surfaces feeling live.
+
 ## Current Product Truth
 
 The live product is intentionally scoped.
