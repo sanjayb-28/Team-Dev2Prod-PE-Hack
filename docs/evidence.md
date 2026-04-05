@@ -1,187 +1,177 @@
-# Evidence Placeholders
+# Evidence Plan
 
 <p>
   <img src="assets/icons/evidence.svg" alt="Evidence icon" width="22" />
-  &nbsp;<strong>Submission evidence plan</strong>
+  &nbsp;<strong>Submission-ready links, screenshots, and notes</strong>
 </p>
 
-This file is the structured holding area for links, screenshots, video captures, and notes that will later be copied into the submission form.
+This file is the working evidence sheet for the submission form. Each section below maps to one quest tier and records:
+
+- the best link to attach
+- the screenshot or video that supports it
+- the short note that explains what the evidence proves
 
 ## Reliability
 
 ### Bronze
 
-What to capture:
+**Link**
 
-- passing CI run showing automated tests
+- [Tests and Gate workflow run](https://github.com/sanjayb-28/Team-Dev2Prod-PE-Hack/actions/runs/23996027297)
 
-Source:
+**Image / video**
 
-- GitHub Actions `Tests and Gate`
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <img src="image-1.png" alt="Passing GitHub Actions test and coverage gate" />
+      <br />
+      <sub><strong>CI gate</strong>: automated tests and coverage passing in GitHub Actions.</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="image.png" alt="Health endpoint returning status ok" />
+      <br />
+      <sub><strong>Health pulse</strong>: public workload health check returning <code>{"status":"ok"}</code>.</sub>
+    </td>
+  </tr>
+</table>
 
-Placeholders:
+**Notes**
 
-- Link: `TBD`
-- Image/video: `TBD`
-- Notes: `TBD`
+- Automated tests run before release, coverage is enforced in CI, and the workload exposes a live `/health` pulse check.
 
 ### Silver
 
-What to capture:
+**Link**
 
-- coverage proof
-- blocked release proof when tests fail
-- notes on clean error handling and failure behavior
+- [Tests and Gate job view](https://github.com/sanjayb-28/Team-Dev2Prod-PE-Hack/actions/runs/23996027297/job/69984127615)
 
-Source:
+**Image / video**
 
-- GitHub Actions
-- test output
-- repository docs
+<p align="center">
+  <img src="image-2.png" alt="Failed test gate blocking release" width="90%" />
+  <br />
+  <sub><strong>Blocked gate</strong>: a failing test run stops the release path before broken code can move forward.</sub>
+</p>
 
-Placeholders:
+**Notes**
 
-- Link: `TBD`
-- Image/video: `TBD`
-- Notes: `TBD`
+- The release gate blocks when tests fail, coverage remains visible in CI, and the public API returns structured JSON errors for invalid, missing, or inactive resources.
 
 ### Gold
 
-What to capture:
+**Link**
 
-- live pod restart or fault recovery behavior
-- graceful failure handling
-- failure-mode documentation pointer
+- [Workspace recovery demo](https://www.loom.com/share/01e5d8258899486aa2f99ba0d7240f06)
 
-Source:
+**Image / video**
 
-- Workspace demo
-- reference workload demo
-- docs
+- Loom recording linked above
 
-Placeholders:
+**Notes**
 
-- Link: `TBD`
-- Image/video: `TBD`
-- Notes: `TBD`
+- Workspace shows a deliberate fault, live recovery signals, and the reference workload staying readable while the cluster returns to a healthy state.
 
 ## Scalability
 
 ### Bronze
 
-What to capture:
+**Link**
 
-- baseline load run
-- p95 latency and error-rate numbers
+- [Scalability implementation guide](https://github.com/sanjayb-28/Team-Dev2Prod-PE-Hack/blob/main/docs/scalability.md)
 
-Source:
+**Image / video**
 
-- Performance surface
-- benchmark output
+<p align="center">
+  <img src="image-3.png" alt="Bronze baseline result" width="90%" />
+  <br />
+  <sub><strong>Bronze baseline</strong>: the starting latency and error-rate profile before scale-out and cache help are applied.</sub>
+</p>
 
-Placeholders:
+**Notes**
 
-- Link: `TBD`
-- Image/video: `TBD`
-- Notes: `TBD`
+- Baseline lane simulates 50 concurrent users and records the starting latency, error rate, request count, and throughput in one readable surface.
 
 ### Silver
 
-What to capture:
+**Link**
 
-- scale-out run
-- multiple replicas
-- response-time behavior under larger load
+- [Silver scale-out demo](https://www.loom.com/share/6b63bbf844cd486b8ce725fb08069581)
 
-Source:
+**Image / video**
 
-- Performance surface
-- cluster or local scale view
+- Loom recording linked above
 
-Placeholders:
+**Notes**
 
-- Link: `TBD`
-- Image/video: `TBD`
-- Notes: `TBD`
+- Silver scale-out runs the workload behind a traffic-splitting layer and shows how the platform behaves at the 200-user lane with multiple app instances.
 
 ### Gold
 
-What to capture:
+**Link**
 
-- cache proof
-- heavy-burst run result
-- bottleneck summary
-- stability under the heaviest lane
+- [Capacity plan](https://github.com/sanjayb-28/Team-Dev2Prod-PE-Hack/blob/main/docs/capacity-plan.md)
 
-Source:
+**Image / video**
 
-- Performance surface
-- platform docs
+<p align="center">
+  <img src="image-4.png" alt="Gold cache burst result with recent benchmark history" width="90%" />
+  <br />
+  <sub><strong>Gold cache burst</strong>: the cache-aware heavy lane, with recent benchmark history visible beside the latest result.</sub>
+</p>
 
-Placeholders:
+**Notes**
 
-- Link: `TBD`
-- Image/video: `TBD`
-- Notes: `TBD`
+- Gold uses Redis-backed reads and the heaviest benchmark lane to show cache proof, burst stability, and the throughput gain after database-connection pressure was addressed.
 
 ## Documentation
 
 ### Bronze
 
-What to capture:
+**Link**
 
-- README quality
-- architecture diagram
-- endpoint documentation
+- [README](https://github.com/sanjayb-28/Team-Dev2Prod-PE-Hack/blob/main/README.md)
 
-Source:
+**Image / video**
 
-- root README
-- `docs/platform.md`
-- `docs/api.md`
+<p align="center">
+  <img src="image-5.png" alt="README overview with live links and architecture diagram" width="90%" />
+  <br />
+  <sub><strong>README overview</strong>: top-level project framing, demo links, platform summary, and architecture diagram.</sub>
+</p>
 
-Placeholders:
+**Notes**
 
-- Link: `TBD`
-- Image/video: `TBD`
-- Notes: `TBD`
+- The README gives setup context, demo entry points, architecture framing, and a direct path into the platform and API docs.
 
 ### Silver
 
-What to capture:
+**Link**
 
-- deploy and rollback instructions
-- troubleshooting notes
-- config reference
+- [Deploy guide](https://github.com/sanjayb-28/Team-Dev2Prod-PE-Hack/blob/main/docs/deploy.md)
+- [Troubleshooting guide](https://github.com/sanjayb-28/Team-Dev2Prod-PE-Hack/blob/main/docs/troubleshooting.md)
+- [Config reference](https://github.com/sanjayb-28/Team-Dev2Prod-PE-Hack/blob/main/docs/config.md)
 
-Source:
+**Image / video**
 
-- `docs/deploy.md`
-- `docs/troubleshooting.md`
-- `docs/config.md`
+- Pending capture
 
-Placeholders:
+**Notes**
 
-- Link: `TBD`
-- Image/video: `TBD`
-- Notes: `TBD`
+- Silver documentation covers how the platform is deployed, how a rollback is performed, how common failures are diagnosed, and which environment variables control the live system.
 
 ### Gold
 
-What to capture:
+**Link**
 
-- runbooks
-- decision log
-- capacity plan
+- [Runbooks](https://github.com/sanjayb-28/Team-Dev2Prod-PE-Hack/blob/main/docs/runbooks.md)
+- [Decision log](https://github.com/sanjayb-28/Team-Dev2Prod-PE-Hack/blob/main/docs/decision-log.md)
+- [Capacity plan](https://github.com/sanjayb-28/Team-Dev2Prod-PE-Hack/blob/main/docs/capacity-plan.md)
 
-Source:
+**Image / video**
 
-- `docs/runbooks.md`
-- `docs/decision-log.md`
-- `docs/capacity-plan.md`
+- Pending capture
 
-Placeholders:
+**Notes**
 
-- Link: `TBD`
-- Image/video: `TBD`
-- Notes: `TBD`
+- Gold documentation covers operational runbooks, the real technical tradeoffs behind the platform shape, and the measured capacity story for the benchmark lanes.
