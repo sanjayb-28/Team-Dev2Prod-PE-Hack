@@ -1,8 +1,16 @@
 flowchart LR
-    A["Operator opens Workspace"] --> B["Choose guarded target"]
-    B --> C["Start one chaos drill"]
-    C --> D["Control plane creates Chaos Mesh experiment"]
-    D --> E["Cluster changes workload state"]
-    E --> F["Workspace streams recovery signals"]
-    F --> G["Evidence and logs explain what changed"]
-    G --> H["User verifies workload behavior"]
+    Start["Workspace opens"] --> Target["Guarded target stays pinned"]
+    Target --> Drill["One fault drill starts"]
+    Drill --> Control["Control plane creates Chaos Mesh experiment"]
+    Control --> Cluster["Cluster changes workload state"]
+    Cluster --> Watch["Recovery watch and resilience proof update"]
+    Watch --> Evidence["Events and logs stay attached to the drill"]
+    Evidence --> Verify["User verifies the reference workload"]
+
+    classDef neutral fill:#F8FAFC,stroke:#CBD5E1,color:#1E293B,stroke-width:1.6px;
+    classDef focus fill:#F2FBF7,stroke:#17714F,color:#1B2840,stroke-width:2px;
+    classDef platform fill:#EEF4FF,stroke:#326DE6,color:#1B2840,stroke-width:2px;
+
+    class Start,Verify neutral
+    class Target,Drill,Watch,Evidence focus
+    class Control,Cluster platform

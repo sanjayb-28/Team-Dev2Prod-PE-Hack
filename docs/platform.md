@@ -1,5 +1,10 @@
 # Dev2Prod Platform Narrative
 
+<p>
+  <img src="assets/icons/api.svg" alt="Platform icon" width="22" />
+  &nbsp;<strong>Platform narrative</strong>
+</p>
+
 Dev2Prod is a controlled chaos and scale lab for Kubernetes workloads.
 
 It is meant to make resilience and scalability work easier to understand, easier to run, and easier to explain without reducing the system to a black box.
@@ -21,6 +26,48 @@ The platform brings those checks into one guided surface so the user does not ha
 - separate infrastructure tools
 
 The point is not to remove engineering judgment. The point is to make the process clearer and more accessible.
+
+## Architecture Overview
+
+```mermaid
+flowchart LR
+    U["Public users"]
+
+    subgraph C["DigitalOcean Kubernetes cluster"]
+        direction LR
+        Client["Client<br/>Landing · Workspace · Performance"]
+        Control["Control plane<br/>API-first orchestration"]
+        Workload["Reference workload<br/>URL Shortener API"]
+        Chaos["Chaos Mesh<br/>Fault injection"]
+        Scale["Scale runs<br/>k6 benchmark jobs"]
+        Redis["Redis<br/>Read cache"]
+    end
+
+    DB["Managed PostgreSQL<br/>Persistent workload data"]
+    CI["GitHub Actions<br/>Tests and deploy"]
+
+    U --> Client
+    Client --> Control
+    Client --> Workload
+    Control --> Chaos
+    Control --> Scale
+    Control --> Workload
+    Workload --> Redis
+    Workload --> DB
+    CI --> Client
+    CI --> Control
+    CI --> Workload
+
+    classDef edge fill:#F8FAFC,stroke:#CBD5E1,color:#1E293B,stroke-width:1.6px;
+    classDef product fill:#EEF4FF,stroke:#326DE6,color:#1B2840,stroke-width:2px;
+    classDef runtime fill:#F2FBF7,stroke:#17714F,color:#1B2840,stroke-width:2px;
+
+    class U,DB,CI edge
+    class Client,Control product
+    class Workload,Chaos,Scale,Redis runtime
+```
+
+Source: [platform-overview.mmd](assets/diagrams/platform-overview.mmd)
 
 ## Current Product Truth
 
@@ -63,51 +110,20 @@ The ideal outcome is simple:
 - understand what happened
 - earn confidence before the 2 a.m. incident
 
-## Architecture Overview
-
-![Dev2Prod platform architecture](assets/diagrams/dev2prod-platform-overview.svg)
-
-### What This Diagram Shows
-
-- the `client` is the public entrypoint
-- the `control-plane` is the API-first orchestration layer
-- the `workload-api` is the reference workload
-- `Chaos Mesh` injects controlled faults
-- `Redis` supports cached read paths for the scale story
-- managed PostgreSQL stores the workload data
-- GitHub Actions deploys the full shape into the cluster
-
 ## Product Surfaces
 
-### Landing
-
-The landing page explains the platform and routes the reader into the main flows.
-
-### Workspace
-
-Workspace is the reliability surface.
-
-It keeps the fault target explicit, shows recovery signals, and attaches evidence and logs directly to the drill that is running.
-
-### Performance
-
-Performance is the scalability surface.
-
-It runs baseline, scale-out, and cache-burst checks and turns the benchmark output into a readable story.
-
-### Reference Workload
-
-The shortener page is the user-facing proof surface.
-
-It gives the platform something concrete to keep alive, slow down, or scale around.
+| Surface | Purpose |
+| --- | --- |
+| Landing | Explains the platform and routes the reader into the main flows. |
+| Workspace | Reliability surface for faults, recovery watch, and evidence. |
+| Performance | Scalability surface for baseline, scale-out, and cache-burst runs. |
+| Reference workload | User-facing proof surface that the platform tries to keep alive or explain clearly. |
 
 ## Current Scope And Next Direction
 
 The current implementation is shaped by the active quest constraints, but the platform direction is broader.
 
-### What Comes Next
-
-1. A headless control plane
+### A headless control plane
 
 The control plane is already structured as an API-first engine. The current React app is one client over that layer, not the only possible interface.
 
@@ -118,19 +134,19 @@ Future interfaces could include:
 - automation integrations
 - a CLI client
 
-2. Bring-your-own workload
+### Bring-your-own workload
 
 The long-term platform direction is to let users point Dev2Prod at their own cluster workload instead of a locked reference target.
 
 That means safe onboarding, scope validation, workload mapping, and guided targeting rather than one hardcoded app.
 
-3. Broader fault coverage
+### Broader fault coverage
 
 The current fault set is a starting point, not the final platform surface.
 
 The direction is to support more chaos patterns while keeping the experience understandable for non-experts.
 
-4. Better cluster visibility
+### Better cluster visibility
 
 The platform should expose richer health and recovery information without turning into a noisy admin console.
 

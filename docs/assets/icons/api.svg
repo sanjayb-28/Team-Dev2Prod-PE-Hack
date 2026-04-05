@@ -1,0 +1,10 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title">
+  <title id="title">Platform icon</title>
+  <rect x="10" y="14" width="44" height="36" rx="10" fill="#F4F8FF" stroke="#326DE6" stroke-width="2.5"/>
+  <path d="M20 26H44" stroke="#326DE6" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M20 32H36" stroke="#326DE6" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M20 38H30" stroke="#326DE6" stroke-width="2.5" stroke-linecap="round"/>
+  <circle cx="46" cy="38" r="7" fill="#EAF2FF" stroke="#326DE6" stroke-width="2.5"/>
+  <path d="M43 38H49" stroke="#326DE6" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M46 35V41" stroke="#326DE6" stroke-width="2.5" stroke-linecap="round"/>
+</svg>

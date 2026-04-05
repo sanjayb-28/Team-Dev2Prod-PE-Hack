@@ -1,9 +1,5 @@
 # Docs Icons
 
-This directory is reserved for documentation icon assets used in the README and `docs/` pages.
+These icons are lightweight repo-owned SVG assets used in the README and docs pages.
 
-The visual direction is:
-
-- modern product-doc look
-- mixed but minimal icon usage
-- clean enough to reuse in diagrams and callout blocks
+They are intentionally simple so the documentation keeps a clean product-manual look without depending on external badge services or framework-specific icon pipelines.
