@@ -238,6 +238,15 @@ Start here:
 Implementation references:
 
 - [DigitalOcean delivery](infra/digitalocean/README.md)
+
+## Community Files
+
+- [License](LICENSE)
+- [Contributing guide](CONTRIBUTING.md)
+- [Code of conduct](CODE_OF_CONDUCT.md)
+- [Security policy](SECURITY.md)
+- [AI usage](AI_USAGE.md)
+- [Agent instructions](AGENTS.md)
 - [Local stack](infra/local/README.md)
 
 ## Meta Engineering Articles That Closely Relate
