@@ -1,192 +1,147 @@
-# MLH PE Hackathon — Flask + Peewee + PostgreSQL Template
+# Dev2Prod
 
-A minimal hackathon starter template. You get the scaffolding and database wiring — you build the models, routes, and CSV loading logic.
+Dev2Prod is a controlled chaos and scale lab for Kubernetes workloads.
 
-**Stack:** Flask · Peewee ORM · PostgreSQL · uv
+It brings resilience and scalability testing into one guided platform so teams can break a deployment on purpose, watch what recovers, and understand where the system bends before production has to teach the lesson the hard way.
 
-## **Important**
+![Dev2Prod platform architecture](docs/assets/diagrams/dev2prod-platform-overview.svg)
 
-You need to work with around the seed files that you can find in [MLH PE Hackathon](https://mlh-pe-hackathon.com) platform. This will help you build the schema for the database and have some data to do some testing and submit your project for judging. If you need help with this, reach out on Discord or on the Q&A tab on the platform.
+## Live Demo
 
-## Prerequisites
+Primary demo surfaces:
 
-- **uv** — a fast Python package manager that handles Python versions, virtual environments, and dependencies automatically.
-  Install it with:
-  ```bash
-  # macOS / Linux
-  curl -LsSf https://astral.sh/uv/install.sh | sh
+- Landing page: [dev2prod.sanjaybaskaran.dev](https://dev2prod.sanjaybaskaran.dev)
+- Reference workload: [dev2prod.sanjaybaskaran.dev/shortener/](https://dev2prod.sanjaybaskaran.dev/shortener/)
 
-  # Windows (PowerShell)
-  powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-  ```
-  For other methods see the [uv installation docs](https://docs.astral.sh/uv/getting-started/installation/).
-- PostgreSQL running locally (you can use Docker or a local instance)
+Secondary operator surfaces:
 
-## uv Basics
+- Workspace: [dev2prod.sanjaybaskaran.dev/workspace](https://dev2prod.sanjaybaskaran.dev/workspace)
+- Performance: [dev2prod.sanjaybaskaran.dev/performance](https://dev2prod.sanjaybaskaran.dev/performance)
 
-`uv` manages your Python version, virtual environment, and dependencies automatically — no manual `python -m venv` needed.
+> Screenshot placeholder: landing page overview  
+> Screenshot placeholder: workspace resilience flow
 
-| Command | What it does |
-|---------|--------------|
-| `uv sync` | Install all dependencies (creates `.venv` automatically) |
-| `uv run <script>` | Run a script using the project's virtual environment |
-| `uv add <package>` | Add a new dependency |
-| `uv remove <package>` | Remove a dependency |
+## What This Platform Does
 
-## Quick Start
+Dev2Prod is built around two active product stories:
+
+- Reliability: run guided fault drills, observe recovery, and make resilience visible.
+- Scalability: run baseline, scale-out, and cache-aware benchmark lanes from one operating surface.
+
+The live environment is intentionally scoped to one reference workload today. That lock is a guardrail for a clean demo, not the long-term product limit.
+
+## Why The Reference Workload Is Simple
+
+The URL shortener is intentionally basic.
+
+That was a deliberate choice. We wanted the real effort to go into the platform around it: deployment shape, control plane behavior, cluster testing, cache strategy, recovery visibility, and guided operator flows. The shortener is there to make the platform legible, not to compete with it for attention.
+
+## Reliability
+
+The reliability surface centers on guided chaos drills in the workspace:
+
+- `Pod restart` proves the platform can recover from a deliberate pod kill.
+- `CPU pressure` shows how the service behaves when one pod is stressed.
+- `Network latency` shows controlled degradation under slower network conditions.
+
+The workspace is designed to make the recovery story readable:
+
+- active target is clearly pinned
+- live recovery state stays visible
+- evidence and logs stay attached to the current drill
+
+Read more:
+
+- [Reliability doc](docs/reliability.md)
+- [Demo walkthrough](docs/demo.md)
+
+## Scalability
+
+The scalability surface is built around three benchmark lanes:
+
+- Bronze baseline
+- Silver scale-out
+- Gold cache burst
+
+Those lanes combine workload scaling, benchmark jobs, and cache proof so the platform can show:
+
+- baseline latency
+- scale-out behavior under higher concurrency
+- cached read-path improvement under heavier burst traffic
+
+Read more:
+
+- [Scalability doc](docs/scalability.md)
+- [Evidence placeholders](docs/evidence.md)
+
+## Platform Direction
+
+Dev2Prod was shaped around the active quest constraints, but the product direction is broader.
+
+The control plane is intentionally API-first. The current React client is one interface over that engine. The longer-term direction is:
+
+- a headless control plane
+- support for onboarding any cluster workload safely
+- more supported chaos experiments
+- richer cluster signals
+- additional clients, including a CLI
+
+The goal is not to hide the system. The goal is to abstract the operational ceremony into guided flows that more people can actually use.
+
+## How To Demo This
+
+Fast demo path:
+
+1. Open the landing page and the reference workload side by side.
+2. Go to `Workspace` and run `Pod restart`.
+3. Watch the recovery panels and the reference workload together.
+4. Run `CPU pressure`.
+5. Move to `Performance` and run Bronze, Silver, and Gold in sequence.
+
+Full script:
+
+- [Demo guide](docs/demo.md)
+
+## Repository Guide
+
+Start here:
+
+- [Platform narrative](docs/platform.md)
+- [Reliability](docs/reliability.md)
+- [Scalability](docs/scalability.md)
+- [Evidence placeholders](docs/evidence.md)
+- [Docs index](docs/index.md)
+
+Implementation references:
+
+- [DigitalOcean delivery](infra/digitalocean/README.md)
+- [Local stack](infra/local/README.md)
+
+## Run Locally
+
+Install backend dependencies:
 
 ```bash
-# 1. Clone the repo
-git clone <repo-url> && cd mlh-pe-hackathon
-
-# 2. Install dependencies
-uv sync
-
-# 3. Create the database
-createdb hackathon_db
-
-# 4. Configure environment
-cp .env.example .env   # edit if your DB credentials differ
-
-# 5. Run the server
-uv run run.py
-
-# 6. Verify
-curl http://localhost:5000/health
-# → {"status":"ok"}
+uv sync --group dev
 ```
 
-## Project Structure
+Bring up the local stack:
 
-```
-mlh-pe-hackathon/
-├── app/
-│   ├── __init__.py          # App factory (create_app)
-│   ├── database.py          # DatabaseProxy, BaseModel, connection hooks
-│   ├── models/
-│   │   └── __init__.py      # Import your models here
-│   └── routes/
-│       └── __init__.py      # register_routes() — add blueprints here
-├── .env.example             # DB connection template
-├── .gitignore               # Python + uv gitignore
-├── .python-version          # Pin Python version for uv
-├── pyproject.toml           # Project metadata + dependencies
-├── run.py                   # Entry point: uv run run.py
-└── README.md
+```bash
+docker compose -f infra/local/compose.yaml --profile scale up --build
 ```
 
-## How to Add a Model
+Key local endpoints:
 
-1. Create a file in `app/models/`, e.g. `app/models/product.py`:
+- cockpit: `http://127.0.0.1:14000`
+- workload API: `http://127.0.0.1:15000`
+- control plane: `http://127.0.0.1:18000`
 
-```python
-from peewee import CharField, DecimalField, IntegerField
+## Relevant Reading
 
-from app.database import BaseModel
+Two Meta Engineering pieces that informed the tone of this project:
 
+- [Scaling services with Shard Manager](https://engineering.fb.com/2020/08/24/production-engineering/scaling-services-with-shard-manager/)
+- [FOQS: Making a distributed priority queue disaster-ready](https://engineering.fb.com/2022/01/18/production-engineering/foqs-disaster-ready/)
 
-class Product(BaseModel):
-    name = CharField()
-    category = CharField()
-    price = DecimalField(decimal_places=2)
-    stock = IntegerField()
-```
-
-2. Import it in `app/models/__init__.py`:
-
-```python
-from app.models.product import Product
-```
-
-3. Create the table (run once in a Python shell or a setup script):
-
-```python
-from app.database import db
-from app.models.product import Product
-
-db.create_tables([Product])
-```
-
-## How to Add Routes
-
-1. Create a blueprint in `app/routes/`, e.g. `app/routes/products.py`:
-
-```python
-from flask import Blueprint, jsonify
-from playhouse.shortcuts import model_to_dict
-
-from app.models.product import Product
-
-products_bp = Blueprint("products", __name__)
-
-
-@products_bp.route("/products")
-def list_products():
-    products = Product.select()
-    return jsonify([model_to_dict(p) for p in products])
-```
-
-2. Register it in `app/routes/__init__.py`:
-
-```python
-def register_routes(app):
-    from app.routes.products import products_bp
-    app.register_blueprint(products_bp)
-```
-
-## How to Load CSV Data
-
-```python
-import csv
-from peewee import chunked
-from app.database import db
-from app.models.product import Product
-
-def load_csv(filepath):
-    with open(filepath, newline="") as f:
-        reader = csv.DictReader(f)
-        rows = list(reader)
-
-    with db.atomic():
-        for batch in chunked(rows, 100):
-            Product.insert_many(batch).execute()
-```
-
-## Useful Peewee Patterns
-
-```python
-from peewee import fn
-from playhouse.shortcuts import model_to_dict
-
-# Select all
-products = Product.select()
-
-# Filter
-cheap = Product.select().where(Product.price < 10)
-
-# Get by ID
-p = Product.get_by_id(1)
-
-# Create
-Product.create(name="Widget", category="Tools", price=9.99, stock=50)
-
-# Convert to dict (great for JSON responses)
-model_to_dict(p)
-
-# Aggregations
-avg_price = Product.select(fn.AVG(Product.price)).scalar()
-total = Product.select(fn.SUM(Product.stock)).scalar()
-
-# Group by
-from peewee import fn
-query = (Product
-         .select(Product.category, fn.COUNT(Product.id).alias("count"))
-         .group_by(Product.category))
-```
-
-## Tips
-
-- Use `model_to_dict` from `playhouse.shortcuts` to convert model instances to dictionaries for JSON responses.
-- Wrap bulk inserts in `db.atomic()` for transactional safety and performance.
-- The template uses `teardown_appcontext` for connection cleanup, so connections are closed even when requests fail.
-- Check `.env.example` for all available configuration options.
+They are not the blueprint for Dev2Prod, but they are useful examples of writing about scaling and resilience as real production problems rather than abstract exercises.

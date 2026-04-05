@@ -1,0 +1,7 @@
+flowchart LR
+    A["Operator opens Performance"] --> B["Choose benchmark lane"]
+    B --> C["Control plane starts scale run"]
+    C --> D["Workload scale and benchmark job are applied"]
+    D --> E["k6 records latency, errors, and throughput"]
+    E --> F["Control plane collects the result"]
+    F --> G["Performance page shows the latest impact"]

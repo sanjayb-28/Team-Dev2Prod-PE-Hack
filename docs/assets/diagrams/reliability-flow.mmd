@@ -1,0 +1,8 @@
+flowchart LR
+    A["Operator opens Workspace"] --> B["Choose guarded target"]
+    B --> C["Start one chaos drill"]
+    C --> D["Control plane creates Chaos Mesh experiment"]
+    D --> E["Cluster changes workload state"]
+    E --> F["Workspace streams recovery signals"]
+    F --> G["Evidence and logs explain what changed"]
+    G --> H["User verifies workload behavior"]
