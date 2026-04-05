@@ -20,6 +20,7 @@ export interface HealthBlock {
 }
 
 export interface WorkloadScope {
+  displayName: string
   deploymentName: string
   serviceName: string
   podPrefix: string

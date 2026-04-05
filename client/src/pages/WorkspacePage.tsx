@@ -36,6 +36,7 @@ const experimentActions: Array<{
   type: ExperimentTypeName
   label: string
   helper: string
+  impact: string
   durationSeconds: number
   parameters: Record<string, unknown>
 }> = [
@@ -43,6 +44,7 @@ const experimentActions: Array<{
     type: 'pod-kill',
     label: 'Pod restart',
     helper: 'Temporarily remove one running pod so you can watch the platform replace it.',
+    impact: 'One pod is removed so Kubernetes has to replace it.',
     durationSeconds: 30,
     parameters: {},
   },
@@ -50,6 +52,7 @@ const experimentActions: Array<{
     type: 'network-latency',
     label: 'Network latency',
     helper: 'Slow requests on purpose so you can see how the app behaves when the network drags.',
+    impact: 'Requests become slower so you can read degradation clearly.',
     durationSeconds: 60,
     parameters: { latencyMs: 120 },
   },
@@ -57,6 +60,7 @@ const experimentActions: Array<{
     type: 'cpu-stress',
     label: 'CPU pressure',
     helper: 'Push extra CPU load onto the workload without disturbing the rest of the namespace.',
+    impact: 'One pod is put under compute pressure while the service tries to stay live.',
     durationSeconds: 60,
     parameters: { cpuLoad: 80 },
   },
@@ -193,7 +197,7 @@ function buildInspectorNotice(resource: ResourceRecord | null, clusterStatus: Cl
     return null
   }
 
-  const workloadLabel = clusterStatus?.workloadScope.deploymentName ?? 'the workload'
+  const workloadLabel = clusterStatus?.workloadScope.displayName ?? 'the workload'
   if (resource.status === 'recovered') {
     return `This fault run has finished. Start a new run on ${workloadLabel} when you want another proof point.`
   }
@@ -519,6 +523,135 @@ function matchesWorkloadScope(resource: ResourceRecord | null, clusterStatus: Cl
   return false
 }
 
+function filterGroupResources(group: ResourceGroupName, resources: ResourceRecord[]) {
+  if (group !== 'replicaSets') {
+    return resources
+  }
+
+  return resources.filter(
+    (resource) =>
+      asNumber(resource.desiredReplicas) > 0 ||
+      asNumber(resource.readyReplicas) > 0 ||
+      asNumber(resource.availableReplicas) > 0,
+  )
+}
+
+function describeFaultStage(experiment: ResourceRecord | null) {
+  if (!experiment) {
+    return {
+      title: 'Ready for the next drill',
+      tone: 'good' as const,
+      detail: 'No active fault run is changing the workload right now.',
+    }
+  }
+
+  if (experiment.status === 'pending') {
+    return {
+      title: 'Fault is starting',
+      tone: 'warn' as const,
+      detail: `${formatExperimentType(experiment.type)} has been accepted by the cluster and is still being applied.`,
+    }
+  }
+
+  if (experiment.status === 'running') {
+    if (experiment.type === 'pod-kill') {
+      return {
+        title: 'Pod replacement in progress',
+        tone: 'warn' as const,
+        detail: 'One pod is being removed so Kubernetes can prove it can replace the URL shortener cleanly.',
+      }
+    }
+
+    if (experiment.type === 'network-latency') {
+      return {
+        title: 'Traffic is being slowed',
+        tone: 'warn' as const,
+        detail: 'The cluster is delaying requests on purpose so you can watch how the service behaves under network drag.',
+      }
+    }
+
+    return {
+      title: 'One pod is under pressure',
+      tone: 'warn' as const,
+      detail: 'Extra CPU load is being pushed onto the workload while the cluster tries to keep the service responsive.',
+    }
+  }
+
+  if (experiment.status === 'recovered') {
+    return {
+      title: 'Last drill recovered',
+      tone: 'good' as const,
+      detail: `${formatExperimentType(experiment.type)} has finished and the workload has settled again.`,
+    }
+  }
+
+  return {
+    title: 'Waiting for cluster feedback',
+    tone: 'quiet' as const,
+    detail: 'The fault run exists, but the cluster has not reported a stable state yet.',
+  }
+}
+
+function buildResilienceProof(
+  experiment: ResourceRecord | null,
+  clusterStatus: ClusterStatus | null,
+  rolloutWatch: ReturnType<typeof buildRolloutWatch>,
+  workloadPods: ResourceRecord[],
+  workloadLabel: string,
+) {
+  const readyPods = workloadPods.filter((pod) => pod.ready).length
+  const totalPods = workloadPods.length
+  const latestPod = getLatestWorkloadPod(workloadPods)
+  const workloadTone = toneForStatus(clusterStatus?.workload.status)
+
+  let title = 'Service is steady'
+  let note = `${workloadLabel} is healthy and ready for the next drill.`
+
+  if (experiment?.status === 'running' && experiment.type === 'pod-kill') {
+    title = 'Replacement path is visible'
+    note =
+      readyPods > 0
+        ? `The cluster is replacing one pod while ${workloadLabel} still has healthy capacity.`
+        : `The cluster is replacing the affected pod right now.`
+  } else if (experiment?.status === 'running' && experiment.type === 'network-latency') {
+    title = 'Degradation drill is active'
+    note = `Requests are being delayed on purpose. Watch continuity and pod health while the service absorbs the slowdown.`
+  } else if (experiment?.status === 'running' && experiment.type === 'cpu-stress') {
+    title = 'Pressure drill is active'
+    note = `One workload pod is under CPU pressure while the service tries to stay available.`
+  } else if (experiment?.status === 'recovered') {
+    title = 'Recovery completed'
+    note = `${workloadLabel} has returned to a steady state after the last drill.`
+  } else if (rolloutWatch?.tone === 'warn') {
+    title = 'Recovery is still settling'
+    note = rolloutWatch.note
+  }
+
+  return {
+    title,
+    tone: rolloutWatch?.tone === 'warn' ? 'warn' : workloadTone,
+    note,
+    rows: [
+      {
+        label: 'Service',
+        value: clusterStatus ? formatStatusText(clusterStatus.workload.status) : 'Waiting',
+      },
+      {
+        label: 'Healthy pods',
+        value: totalPods > 0 ? `${readyPods} / ${totalPods} ready` : 'Waiting for workload pods',
+      },
+      {
+        label: 'Active fault',
+        value: experiment ? formatExperimentType(experiment.type) : 'None',
+      },
+      {
+        label: 'Latest pod',
+        value: latestPod?.name ?? 'Waiting for a workload pod',
+      },
+    ],
+  }
+}
+
 export default function WorkspacePage() {
   const [clusterStatus, setClusterStatus] = useState<ClusterStatus | null>(null)
   const [resourceSnapshot, setResourceSnapshot] = useState<ResourceSnapshot | null>(null)
@@ -534,6 +667,7 @@ export default function WorkspacePage() {
   const [faultActionState, setFaultActionState] = useState<FaultActionState>('idle')
   const [faultActionMessage, setFaultActionMessage] = useState<string | null>(null)
   const [activeFaultType, setActiveFaultType] = useState<ExperimentTypeName | null>(null)
+  const [snapshotVersion, setSnapshotVersion] = useState(0)
 
   const deferredQuery = useDeferredValue(query)
 
@@ -548,6 +682,7 @@ export default function WorkspacePage() {
         setSelectedName(nextSelection.name)
         setPageState('ready')
         setConnectionState('live')
+        setSnapshotVersion((current) => current + 1)
       })
     },
   )
@@ -571,6 +706,7 @@ export default function WorkspacePage() {
         setSelectedName(nextSelection.name)
         setPageState('ready')
         setConnectionState('live')
+        setSnapshotVersion((current) => current + 1)
       })
     } catch {
       startTransition(() => {
@@ -673,10 +809,17 @@ export default function WorkspacePage() {
     return () => {
       cancelled = true
     }
-  }, [selectedGroup, selectedName])
+  }, [selectedGroup, selectedName, snapshotVersion])
 
-  const selectedSection = resourceGroupMeta.find(({ group }) => group === selectedGroup) ?? resourceGroupMeta[0]
-  const currentResources = resourceSnapshot?.resources[selectedGroup] ?? []
+  const resourceSections = resourceGroupMeta
+    .map((section) => ({
+      ...section,
+      items: filterGroupResources(section.group, resourceSnapshot?.resources[section.group] ?? []),
+    }))
+    .filter((section) => section.group !== 'replicaSets' || section.items.length > 0)
+  const selectedSection =
+    resourceSections.find(({ group }) => group === selectedGroup) ?? resourceSections[0] ?? resourceGroupMeta[0]
+  const currentResources = 'items' in selectedSection ? selectedSection.items : []
   const visibleResources = deferredQuery
     ? currentResources.filter((item) =>
         item.name.toLowerCase().includes(deferredQuery.trim().toLowerCase()),
@@ -688,6 +831,7 @@ export default function WorkspacePage() {
   const activeExperiments = experiments.filter((experiment) =>
     ['running', 'pending', 'paused'].includes(String(experiment.status ?? 'unknown')),
   )
+  const currentExperiment = activeExperiments[0] ?? null
   const displayedEvidenceEvents = buildEvidenceEvents(displayedResource, resourceEvents)
   const chaosReady = clusterStatus?.chaosMesh.status === 'ready'
   const workloadDeployment = getWorkloadDeployment(resourceSnapshot, clusterStatus)
@@ -701,31 +845,63 @@ export default function WorkspacePage() {
     workloadPods[0] ??
     null
   const canRunFaults = Boolean(activeFaultTarget && chaosReady)
-  const workloadLabel = clusterStatus?.workloadScope.deploymentName ?? 'the workload'
+  const workloadLabel = clusterStatus?.workloadScope.displayName ?? 'the workload'
+  const workloadSystemName = clusterStatus?.workloadScope.deploymentName ?? 'workload-api'
   const inspectorNotice = buildInspectorNotice(displayedResource, clusterStatus)
   const rolloutWatch = buildRolloutWatch(resourceSnapshot, clusterStatus, displayedResource)
+  const faultStage = describeFaultStage(currentExperiment)
+  const resilienceProof = buildResilienceProof(
+    currentExperiment,
+    clusterStatus,
+    rolloutWatch,
+    workloadPods,
+    workloadLabel,
+  )
   const showDisconnectedWorkspace = pageState === 'error' && !resourceSnapshot
+  const readyWorkloadPods = workloadPods.filter((pod) => pod.ready).length
+  const runLocked = !canRunFaults || faultActionState === 'running' || activeExperiments.length > 0
   const activeTargetRows = [
     {
-      label: 'Current target',
-      value: activeFaultTarget ? activeFaultTarget.name : workloadLabel,
+      label: 'Application',
+      value: workloadLabel,
     },
     {
-      label: 'Type',
-      value: activeFaultTarget ? labelForKind(activeFaultTarget.kind) : 'Waiting for cluster data',
+      label: 'Deployment',
+      value: clusterStatus?.workloadScope.deploymentName ?? workloadSystemName,
     },
     {
-      label: 'Scope lock',
-      value: clusterStatus?.scopeLocked ? `Locked to ${clusterStatus.namespace}` : 'Open scope',
+      label: 'Service',
+      value: workloadService?.name ?? clusterStatus?.workloadScope.serviceName ?? 'Waiting for service',
     },
     {
       label: 'Healthy pods',
       value:
         workloadPods.length > 0
-          ? `${workloadPods.filter((pod) => pod.ready).length} / ${workloadPods.length} ready`
+          ? `${readyWorkloadPods} / ${workloadPods.length} ready`
           : 'Waiting for workload pods',
     },
   ]
+
+  useEffect(() => {
+    if (resourceSections.length === 0) {
+      return
+    }
+
+    const matchingSection = resourceSections.find((section) => section.group === selectedGroup)
+    if (!matchingSection) {
+      startTransition(() => {
+        setSelectedGroup(resourceSections[0].group)
+        setSelectedName(resourceSections[0].items[0]?.name ?? null)
+      })
+      return
+    }
+
+    if (selectedName && !matchingSection.items.some((resource) => resource.name === selectedName)) {
+      startTransition(() => {
+        setSelectedName(matchingSection.items[0]?.name ?? null)
+      })
+    }
+  }, [resourceSections, selectedGroup, selectedName])
 
   async function handleRunExperiment(type: ExperimentTypeName) {
     if (!activeFaultTarget) {
@@ -776,15 +952,18 @@ export default function WorkspacePage() {
   }
 
   async function handleCancelExperiment() {
-    if (!displayedResource || displayedResource.kind !== 'experiment') {
+    const experimentToCancel =
+      displayedResource?.kind === 'experiment' ? displayedResource : currentExperiment
+
+    if (!experimentToCancel) {
       return
     }
 
     setFaultActionState('running')
-    setFaultActionMessage(`Stopping ${displayedResource.name}.`)
+    setFaultActionMessage(`Stopping ${experimentToCancel.name}.`)
 
     try {
-      await cancelExperiment(displayedResource.name)
+      await cancelExperiment(experimentToCancel.name)
       await refreshSnapshot()
       startTransition(() => {
         setFaultActionState('success')
@@ -841,37 +1020,35 @@ export default function WorkspacePage() {
 
       <section className="workspace-overview">
         <article className="signal">
-          <p className="signal__label">Service</p>
+          <p className="signal__label">URL shortener API</p>
+          <strong className={`signal__value signal__value--${toneForStatus(clusterStatus?.workload.status)}`}>
+            {workloadPods.length > 0 ? `${readyWorkloadPods} / ${workloadPods.length} ready` : 'Loading'}
+          </strong>
+          <p className="signal__meta">
+            {clusterStatus
+              ? `${workloadLabel} • deployment/${workloadSystemName}`
+              : 'Waiting for workload status.'}
+          </p>
+        </article>
+
+        <article className="signal">
+          <p className="signal__label">Service continuity</p>
           <strong className={`signal__value signal__value--${toneForStatus(clusterStatus?.workload.status)}`}>
             {clusterStatus ? formatStatusText(clusterStatus.workload.status) : 'Loading'}
           </strong>
           <p className="signal__meta">
             {clusterStatus?.workload.message ??
-              'The workload health check drives the top-line service signal.'}
+              'The workload health check drives the top-line continuity signal.'}
           </p>
         </article>
 
         <article className="signal">
-          <p className="signal__label">Control plane</p>
-          <strong className={`signal__value signal__value--${toneForStatus(clusterStatus?.controlPlane.status)}`}>
-            {clusterStatus ? formatStatusText(clusterStatus.controlPlane.status) : 'Loading'}
+          <p className="signal__label">Fault status</p>
+          <strong className={`signal__value signal__value--${faultStage.tone}`}>
+            {faultStage.title}
           </strong>
           <p className="signal__meta">
-            {clusterStatus
-              ? `${clusterStatus.mode} mode • scope locked to ${clusterStatus.namespace}`
-              : 'Waiting for control-plane status'}
-          </p>
-        </article>
-
-        <article className="signal">
-          <p className="signal__label">Fault tools</p>
-          <strong className={`signal__value signal__value--${toneForStatus(clusterStatus?.chaosMesh.status)}`}>
-            {clusterStatus ? formatStatusText(clusterStatus.chaosMesh.status) : 'Loading'}
-          </strong>
-          <p className="signal__meta">
-            {clusterStatus?.chaosMesh.status === 'ready'
-              ? `${activeExperiments.length} active experiment${activeExperiments.length === 1 ? '' : 's'}`
-              : 'Install and enable Chaos Mesh to unlock the fault controls.'}
+            {faultStage.detail}
           </p>
         </article>
       </section>
@@ -921,16 +1098,16 @@ export default function WorkspacePage() {
               <div className="workspace-section-heading">
                 <p className="pane__eyebrow">Active target</p>
                 <h2>
-                  Guarded workload
-                  <InfoHint label="A workload is the application target the platform can safely stress. The live demo keeps fault actions locked to this target so the rest of the namespace stays predictable." />
+                  {workloadLabel}
+                  <InfoHint label="This is the application target the platform can safely stress. In the live environment, fault actions stay pinned to this API so the rest of the namespace remains context, not confusion." />
                 </h2>
                 <p className="pane__copy">
-                  Fault actions stay pinned to this target even while you inspect other cluster
-                  resources.
+                  Fault actions stay pinned to the live URL shortener API even while you inspect
+                  other cluster resources.
                 </p>
               </div>
 
-              <div className="workspace-target-card__flag">Locked for the live demo</div>
+              <div className="workspace-target-card__flag">Guarded fault target</div>
 
               <dl className="workspace-target-card__grid">
                 {activeTargetRows.map((row) => (
@@ -944,7 +1121,7 @@ export default function WorkspacePage() {
               <p className="workspace-target-card__note">
                 {selectedResourceIsInScope && displayedResource
                   ? `You are currently inspecting ${displayedResource.name}, which is inside the guarded fault scope.`
-                  : `You can inspect anything in the namespace, but fault runs stay locked to ${activeFaultTarget?.name ?? workloadLabel}.`}
+                  : `You can inspect anything in the namespace, but fault runs stay locked to ${workloadLabel}.`}
               </p>
             </article>
 
@@ -952,17 +1129,17 @@ export default function WorkspacePage() {
               <div className="workspace-section-heading">
                 <p className="pane__eyebrow">Cluster inventory</p>
                 <h2>
-                  Inspect the namespace
-                  <InfoHint label="The inventory is the list of cluster resources you can inspect. It is broader than the active fault target and exists to provide context, not to unlock every action." />
+                  Other resources
+                  <InfoHint label="The inventory is the surrounding cluster context. It helps you inspect pods, services, replica sets, and experiment runs without changing which application the fault buttons target." />
                 </h2>
                 <p className="pane__copy">
-                  Use the inventory to inspect deployments, pods, services, and experiment runs
-                  without losing track of the active fault target.
+                  Inspect the rest of the namespace without losing the active target or the
+                  current recovery story.
                 </p>
               </div>
 
               <div className="tabs" role="tablist" aria-label="Resource groups">
-                {resourceGroupMeta.map((section) => (
+                {resourceSections.map((section) => (
                   <button
                     key={section.group}
                     type="button"
@@ -970,13 +1147,13 @@ export default function WorkspacePage() {
                     onClick={() => {
                       startTransition(() => {
                         setSelectedGroup(section.group)
-                        setSelectedName(resourceSnapshot?.resources[section.group][0]?.name ?? null)
+                        setSelectedName(section.items[0]?.name ?? null)
                       })
                     }}
                   >
                     <span>{section.label}</span>
                     <span className="tab__count">
-                      {resourceSnapshot?.resources[section.group].length ?? 0}
+                      {section.items.length}
                     </span>
                   </button>
                 ))}
@@ -1034,38 +1211,35 @@ export default function WorkspacePage() {
               <div className="workspace-section-heading workspace-section-heading--wide">
                 <p className="pane__eyebrow">Fault controls</p>
                 <h2>
-                  Start a controlled fault run
-                  <InfoHint label="A fault run is a temporary disruption that helps you understand how the app behaves under pressure. These controls only target the guarded workload shown above." />
+                  Run a controlled chaos drill
+                  <InfoHint label="A chaos drill is a temporary disruption that helps you understand how the app behaves under pressure. These controls only target the guarded URL shortener API shown above." />
                 </h2>
                 <p className="pane__copy">
-                  Pick one temporary fault at a time. The recovery watch and the evidence
-                  sections below will help you understand what changed.
+                  Start one drill at a time, then watch how the cluster absorbs it and whether
+                  the URL shortener stays healthy.
                 </p>
               </div>
 
               <div className="workspace-action-stage__target">
                 <div>
                   <p className="pane__eyebrow">Current fault target</p>
-                  <strong>{activeFaultTarget?.name ?? workloadLabel}</strong>
+                  <strong>{workloadLabel}</strong>
+                  <span className="workspace-action-stage__target-meta">
+                    {activeFaultTarget
+                      ? `${labelForKind(activeFaultTarget.kind)} • ${activeFaultTarget.name}`
+                      : `deployment • ${workloadSystemName}`}
+                  </span>
                 </div>
                 <p>
                   {activeFaultTarget
-                    ? `${labelForKind(activeFaultTarget.kind)} selected. Faults remain pinned here even when you inspect other resources.`
+                    ? `Faults stay pinned here even while you inspect other resources, so the resilience proof remains clear.`
                     : 'Waiting for the active target to become available.'}
                 </p>
               </div>
 
               <div className="workspace-fault-grid">
                 {experimentActions.map((action) => (
-                  <button
-                    key={action.type}
-                    type="button"
-                    className="fault-card"
-                    disabled={!canRunFaults || faultActionState === 'running'}
-                    onClick={() => {
-                      void handleRunExperiment(action.type)
-                    }}
-                  >
+                  <article key={action.type} className="fault-card">
                     <div className="fault-card__header">
                       <span className="fault-card__eyebrow">Temporary fault</span>
                       <InfoHint
@@ -1074,23 +1248,41 @@ export default function WorkspacePage() {
                             ? 'This removes one running pod so Kubernetes replaces it. Use it to see whether the app recovers cleanly.'
                             : action.type === 'network-latency'
                               ? 'This adds delay to requests so you can watch how the app behaves when the network slows down.'
-                              : 'This raises CPU load on the workload so you can see whether the app stays responsive under compute pressure.'
+                            : 'This raises CPU load on the workload so you can see whether the app stays responsive under compute pressure.'
                         }
                       />
                     </div>
                     <span className="fault-card__title">{action.label}</span>
-                    <small>
-                      {!chaosReady
-                        ? 'Waiting for the fault tooling to become ready.'
-                        : activeFaultType === action.type && faultActionState === 'running'
-                          ? 'Starting now.'
-                          : action.helper}
-                    </small>
-                  </button>
+                    <p className="fault-card__body">{action.helper}</p>
+                    <dl className="fault-card__facts">
+                      <div>
+                        <dt>Effect</dt>
+                        <dd>{action.impact}</dd>
+                      </div>
+                      <div>
+                        <dt>Duration</dt>
+                        <dd>{action.durationSeconds}s</dd>
+                      </div>
+                    </dl>
+                    <button
+                      type="button"
+                      className="button button--primary fault-card__cta"
+                      disabled={runLocked}
+                      onClick={() => {
+                        void handleRunExperiment(action.type)
+                      }}
+                    >
+                      {activeFaultType === action.type && faultActionState === 'running'
+                        ? 'Starting drill'
+                        : activeExperiments.length > 0
+                          ? 'Drill in progress'
+                          : `Run ${action.label}`}
+                    </button>
+                  </article>
                 ))}
               </div>
 
-              {displayedResource?.kind === 'experiment' ? (
+              {currentExperiment ? (
                 <button
                   type="button"
                   className="action-list__secondary"
@@ -1143,6 +1335,29 @@ export default function WorkspacePage() {
                   </dl>
                 </section>
               ) : null}
+
+              <section className="workspace-proof">
+                <div className="detail-events__header">
+                  <h3>
+                    Resilience proof
+                    <InfoHint label="This panel translates the live cluster state into a plain-language summary of whether the service stayed available, how many pods remained healthy, and what the last drill changed." />
+                  </h3>
+                  <p>{resilienceProof.note}</p>
+                </div>
+                <strong
+                  className={`workspace-proof__status workspace-proof__status--${resilienceProof.tone}`}
+                >
+                  {resilienceProof.title}
+                </strong>
+                <dl className="workspace-proof__grid">
+                  {resilienceProof.rows.map((row) => (
+                    <div key={row.label}>
+                      <dt>{row.label}</dt>
+                      <dd>{row.value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </section>
             </aside>
           </section>
 
