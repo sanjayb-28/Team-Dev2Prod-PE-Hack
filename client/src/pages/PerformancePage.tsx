@@ -6,6 +6,29 @@ import type { ScaleLabLane, ScaleLabRun, ScaleLabSnapshot } from '../types'
 type RequestState = 'loading' | 'ready' | 'error'
 type ActionState = 'idle' | 'running' | 'success' | 'error'
 
+function InfoHint({ label }: { label: string }) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <span
+      className="info-hint"
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+    >
+      <button
+        type="button"
+        className="info-hint__trigger"
+        aria-label={label}
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+      >
+        i
+      </button>
+      {open ? <span className="info-hint__panel">{label}</span> : null}
+    </span>
+  )
+}
+
 function formatUpdatedAt(value: string | undefined) {
   if (!value) {
     return 'Waiting for the first run'
@@ -89,6 +112,36 @@ function latestRunOutcome(run: ScaleLabRun | null) {
   }
 }
 
+function describeCacheProof(
+  cacheProof: ScaleLabSnapshot['cacheProof'],
+): { tone: 'good' | 'bad'; label: string; detail: string } | null {
+  if (!cacheProof) {
+    return null
+  }
+
+  if (cacheProof.second === 'HIT' && cacheProof.first === 'MISS') {
+    return {
+      tone: 'good',
+      label: 'Cache warmed on the second request',
+      detail: `The first request to ${cacheProof.path} fetched fresh data. The second request reused the stored response, which is the behavior we want under repeated traffic.`,
+    }
+  }
+
+  if (cacheProof.second === 'HIT' && cacheProof.first === 'HIT') {
+    return {
+      tone: 'good',
+      label: 'Cache was already warm',
+      detail: `Both probes to ${cacheProof.path} were served from Redis. That means this path was already cached before the latest check started.`,
+    }
+  }
+
+  return {
+    tone: 'bad',
+    label: 'Cache did not settle yet',
+    detail: `The platform probes ${cacheProof.path} twice. A healthy read cache should end on a hit, but this path still looks cold or bypassed.`,
+  }
+}
+
 export default function PerformancePage() {
   const [snapshot, setSnapshot] = useState<ScaleLabSnapshot | null>(null)
   const [state, setState] = useState<RequestState>('loading')
@@ -132,6 +185,7 @@ export default function PerformancePage() {
   const liveRun = snapshot?.runs.find((run) => run.status === 'running' || run.status === 'pending')
   const runInProgress = Boolean(liveRun)
   const latestOutcome = latestRunOutcome(latestRun)
+  const cacheOutcome = describeCacheProof(snapshot?.cacheProof ?? null)
 
   async function handleRun(lane: ScaleLabLane) {
     setActionState('running')
@@ -216,47 +270,76 @@ export default function PerformancePage() {
         </section>
       ) : null}
 
-      <section className="performance-grid">
-        {(snapshot?.lanes ?? []).map((lane) => {
-          const run = currentLaneRun(snapshot?.runs ?? [], lane)
-          return (
-            <article key={lane.id} className="performance-panel">
-              <p className="eyebrow">{lane.label}</p>
-              <h2>{lane.concurrency} concurrent users</h2>
-              <p>{lane.description}</p>
-              <dl className="performance-lane-stats">
-                <div>
-                  <dt>Replicas</dt>
-                  <dd>{lane.replicas}</dd>
-                </div>
-                <div>
-                  <dt>Duration</dt>
-                  <dd>{lane.durationSeconds}s</dd>
-                </div>
-                <div>
-                  <dt>Latest status</dt>
-                  <dd className={`resource-list__status resource-list__status--${toneForRun(run?.status ?? 'quiet')}`}>
-                    {run ? run.status : 'Waiting'}
-                  </dd>
-                </div>
-              </dl>
-              <button
-                type="button"
-                className="button button--primary"
-                disabled={!snapshot?.enabled || actionState === 'running' || runInProgress}
-                onClick={() => {
-                  void handleRun(lane)
-                }}
+      <section className="performance-section">
+        <div className="performance-section__header">
+          <div className="section-heading">
+            <p className="eyebrow">Run scenarios</p>
+            <h2>Choose one benchmark lane at a time.</h2>
+            <p>
+              Each lane shifts traffic pressure and workload scale in a slightly different
+              way, so the latest result reads like one clear performance story.
+            </p>
+          </div>
+        </div>
+
+        <div className="performance-grid">
+          {(snapshot?.lanes ?? []).map((lane) => {
+            const run = currentLaneRun(snapshot?.runs ?? [], lane)
+            const isGoldLane = lane.id === 'gold-cache-burst'
+            return (
+              <article
+                key={lane.id}
+                className={
+                  isGoldLane
+                    ? 'performance-panel performance-panel--spotlight'
+                    : 'performance-panel'
+                }
               >
-                {activeLane === lane.id && actionState === 'running'
-                  ? 'Starting run'
-                  : runInProgress
-                    ? 'Run in progress'
-                  : `Run ${lane.label}`}
-              </button>
-            </article>
-          )
-        })}
+                <p className="eyebrow">{lane.label}</p>
+                <h2>
+                  {lane.concurrency} concurrent users
+                  <InfoHint label="Concurrent users are the number of simulated people hitting the app at the same time during this run." />
+                </h2>
+                <p>{lane.description}</p>
+                <dl className="performance-lane-stats">
+                  <div>
+                    <dt>
+                      Replicas
+                      <InfoHint label="Replicas are the number of app copies serving traffic during this lane." />
+                    </dt>
+                    <dd>{lane.replicas}</dd>
+                  </div>
+                  <div>
+                    <dt>Duration</dt>
+                    <dd>{lane.durationSeconds}s</dd>
+                  </div>
+                  <div>
+                    <dt>Latest status</dt>
+                    <dd
+                      className={`resource-list__status resource-list__status--${toneForRun(run?.status ?? 'quiet')}`}
+                    >
+                      {run ? run.status : 'Waiting'}
+                    </dd>
+                  </div>
+                </dl>
+                <button
+                  type="button"
+                  className="button button--primary"
+                  disabled={!snapshot?.enabled || actionState === 'running' || runInProgress}
+                  onClick={() => {
+                    void handleRun(lane)
+                  }}
+                >
+                  {activeLane === lane.id && actionState === 'running'
+                    ? 'Starting run'
+                    : runInProgress
+                      ? 'Run in progress'
+                      : `Run ${lane.label}`}
+                </button>
+              </article>
+            )
+          })}
+        </div>
       </section>
 
       {actionMessage ? (
@@ -278,28 +361,41 @@ export default function PerformancePage() {
         </section>
       ) : null}
 
-      <section className="performance-layout">
-        <article className="performance-panel">
+      <section className="performance-section">
+        <div className="performance-section__header">
+          <div className="section-heading">
+            <p className="eyebrow">Evidence</p>
+            <h2>Read the latest impact in one place.</h2>
+            <p>
+              Cache proof, latest result, and run history stay together so the page feels
+              like one operating surface instead of a detached benchmark board.
+            </p>
+          </div>
+        </div>
+
+        <div className="performance-layout">
+          <article className="performance-panel">
           <p className="eyebrow">Cache proof</p>
-          <h2>Read-path cache status</h2>
-          {snapshot?.cacheProof ? (
-            <div className={`performance-outcome performance-outcome--${snapshot.cacheProof.second === 'HIT' ? 'good' : 'bad'}`}>
+          <h2>
+            Read-path cache status
+            <InfoHint label="A cache stores a recent response in memory so the app can answer repeated reads faster without going back to the database every time." />
+          </h2>
+          {cacheOutcome ? (
+            <div className={`performance-outcome performance-outcome--${cacheOutcome.tone}`}>
               <strong>
-                {snapshot.cacheProof.first ?? '—'} → {snapshot.cacheProof.second ?? '—'}
+                {snapshot?.cacheProof?.first ?? '—'} → {snapshot?.cacheProof?.second ?? '—'}
               </strong>
-              <p>
-                The control plane probes {snapshot.cacheProof.path} twice. A warmed Redis
-                path should settle on a second-request hit.
-              </p>
+              <p>{cacheOutcome.label}</p>
+              <p>{cacheOutcome.detail}</p>
             </div>
           ) : (
             <p className="performance-note">
               Cache proof appears here once the live workload responds with cache headers.
             </p>
           )}
-        </article>
+          </article>
 
-        <article className="performance-panel">
+          <article className="performance-panel">
           <p className="eyebrow">Latest result</p>
           <h2>{latestRun ? latestRun.label : 'Waiting for the first cluster run'}</h2>
           {latestOutcome ? (
@@ -311,7 +407,10 @@ export default function PerformancePage() {
           {latestRun?.summary ? (
             <dl className="performance-result-grid">
               <div>
-                <dt>P95 latency</dt>
+                <dt>
+                  P95 latency
+                  <InfoHint label="P95 latency is the response time that 95% of requests stay under. It is a better stress signal than a simple average." />
+                </dt>
                 <dd>{latestRun.summary.p95LatencyMs} ms</dd>
               </div>
               <div>
@@ -319,7 +418,10 @@ export default function PerformancePage() {
                 <dd>{latestRun.summary.avgLatencyMs} ms</dd>
               </div>
               <div>
-                <dt>Error rate</dt>
+                <dt>
+                  Error rate
+                  <InfoHint label="Error rate is the share of requests that failed during the run. Lower is better." />
+                </dt>
                 <dd>{formatPercent(latestRun.summary.errorRate)}</dd>
               </div>
               <div>
@@ -337,9 +439,9 @@ export default function PerformancePage() {
               pod finishes and the control plane reads the summary.
             </p>
           )}
-        </article>
+          </article>
 
-        <article className="performance-panel">
+          <article className="performance-panel">
           <p className="eyebrow">Run history</p>
           <h2>Recent benchmark runs</h2>
           <div className="performance-proof">
@@ -363,7 +465,8 @@ export default function PerformancePage() {
               ))
             )}
           </div>
-        </article>
+          </article>
+        </div>
       </section>
     </div>
   )

@@ -5,7 +5,7 @@ import type { ClusterStatus } from '../types'
 
 type HomeState = 'loading' | 'ready' | 'error'
 
-type NavigateTarget = 'workspace' | 'performance' | 'observability' | 'operations'
+type NavigateTarget = 'workspace' | 'performance' | 'operations'
 
 interface HomePageProps {
   onNavigate: (page: NavigateTarget) => void
@@ -13,21 +13,21 @@ interface HomePageProps {
 
 const capabilityGroups = [
   {
-    title: 'Control room',
-    body: 'Run a fault, follow the workload response, and inspect the cluster from one live surface.',
+    title: 'Workspace',
+    body: 'Start a controlled fault, follow the active target, and watch the system move back toward a steady state.',
     page: 'workspace' as const,
     tone: 'teal',
   },
   {
-    title: 'Load view',
-    body: 'Compare baseline, scale-out, and cache runs without burying the story in raw benchmark output.',
+    title: 'Performance',
+    body: 'Compare baseline, scale-out, and cache behavior in one place without digging through raw benchmark output.',
     page: 'performance' as const,
     tone: 'blue',
   },
   {
-    title: 'Signal view',
-    body: 'Bring alerts, golden signals, logs, and runbooks into one calmer operating surface.',
-    page: 'observability' as const,
+    title: 'Documentation',
+    body: 'Keep the platform architecture, operating model, and supporting context close without crowding the main workflows.',
+    page: 'operations' as const,
     tone: 'orange',
   },
 ]
@@ -87,12 +87,13 @@ export default function HomePage({ onNavigate }: HomePageProps) {
         <div className="landing-hero__copy">
           <p className="eyebrow">Dev2Prod</p>
           <h1 className="landing-hero__headline">
-            <span>Operate one service</span>
-            <span className="landing-hero__headline-fill">from fault to steady state.</span>
+            <span>Cluster resilience engine</span>
+            <span className="landing-hero__headline-fill">for faults, recovery, and scale.</span>
           </h1>
           <p className="landing-hero__intro">
-            Keep the live service readable while it is being stressed, scaled, or traced.
-            The product stays focused on one workload and one clean operating flow.
+            Run controlled disruptions, compare cluster behavior under load, and keep the
+            operating picture readable while the system is under pressure. Dev2Prod keeps
+            fault testing, recovery signals, and scale evidence in one operating surface.
           </p>
           <div className="landing-hero__actions">
             <button
@@ -105,24 +106,16 @@ export default function HomePage({ onNavigate }: HomePageProps) {
             <button
               type="button"
               className="button"
-              onClick={() => onNavigate('observability')}
+              onClick={() => onNavigate('performance')}
             >
-              View observability
+              Open performance
             </button>
-            <a
-              className="button"
-              href="/shortener/"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Open shortener
-            </a>
           </div>
         </div>
 
         <aside className="landing-hero__rail" aria-label="Live environment">
           <div className="landing-hero__rail-header">
-            <p className="eyebrow">Live environment</p>
+            <p className="eyebrow">Active cluster</p>
             <strong>
               {state === 'ready'
                 ? `${clusterStatus?.clusterName} / ${clusterStatus?.namespace}`
@@ -156,11 +149,11 @@ export default function HomePage({ onNavigate }: HomePageProps) {
           <dl className="landing-hero__facts">
             <div>
               <dt>Scope</dt>
-              <dd>One cluster, one namespace, one workload</dd>
+              <dd>Live cluster with one guarded fault path enabled</dd>
             </div>
             <div>
               <dt>Focus</dt>
-              <dd>Faults, scale, and signals in one surface</dd>
+              <dd>Cluster failure testing, recovery, and scale verification</dd>
             </div>
             <div>
               <dt>Mode</dt>
@@ -173,10 +166,10 @@ export default function HomePage({ onNavigate }: HomePageProps) {
       <section className="capability-band">
         <div className="section-heading">
           <p className="eyebrow">Core surfaces</p>
-          <h2>Three focused views, one operating rhythm.</h2>
+          <h2>Three focused surfaces around one cluster operating picture.</h2>
           <p>
-            Each surface carries one job, keeps the next action obvious, and stays connected
-            to the same live system.
+            Each surface carries one job, keeps the next action obvious, and stays anchored
+            to the same live cluster state.
           </p>
         </div>
 
@@ -200,30 +193,30 @@ export default function HomePage({ onNavigate }: HomePageProps) {
 
       <section className="landing-detail">
         <div className="section-heading">
-          <p className="eyebrow">What makes it work</p>
-          <h2>Built around one service, not a bloated platform story.</h2>
+          <p className="eyebrow">Platform shape</p>
+          <h2>Built to make cluster behavior legible before production does it for you.</h2>
         </div>
 
         <div className="detail-columns">
           <div>
-            <strong>Guided fault flow</strong>
+            <strong>Controlled disruption</strong>
             <p>
-              Keep the live fault path intact, but make it readable enough for someone opening
-              the product for the first time.
+              Start a fault on purpose, keep the target clear, and follow the cluster
+              recovery path without losing the surrounding system context.
             </p>
           </div>
           <div>
             <strong>Performance in context</strong>
             <p>
-              Benchmarks, scale-out, and caching should read like a clear system story, not
-              like a wall of terminal output.
+              Benchmarks, scale-out, and cache behavior should read like one coherent
+              cluster story, not like a wall of terminal output.
             </p>
           </div>
           <div>
-            <strong>Response without clutter</strong>
+            <strong>General operating model</strong>
             <p>
-              Logs, alerts, and golden signals belong in one calm surface that stays useful
-              under pressure.
+              The live environment stays tightly scoped today, but the platform model is
+              broader: observe, stress, and verify cluster behavior in one place.
             </p>
           </div>
         </div>
