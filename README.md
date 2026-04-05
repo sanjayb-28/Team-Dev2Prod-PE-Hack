@@ -74,6 +74,16 @@ flowchart LR
 
 Source: [platform-overview.mmd](docs/assets/diagrams/platform-overview.mmd)
 
+## Runtime Foundation
+
+The live platform is built on a small set of runtime choices that matter to the overall story:
+
+- **DigitalOcean Kubernetes** runs the client, control plane, reference workload, and Redis cache.
+- **DigitalOcean Managed PostgreSQL** is the system-of-record database for the workload.
+- **Redis** is used as a read cache, not as primary storage.
+- **GitHub Actions** acts as both the release gate and the deploy trigger.
+- **The control plane keeps the client live through Server-Sent Events**, pushing normalized cluster and experiment snapshots instead of forcing the UI to poll raw infrastructure state directly.
+
 ## The Story Behind The Platform
 
 Dev2Prod is built around a simple belief: if a deployment only looks healthy when nothing goes wrong, that is not enough.
