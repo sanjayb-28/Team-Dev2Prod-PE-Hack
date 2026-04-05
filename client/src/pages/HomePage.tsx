@@ -5,7 +5,7 @@ import type { ClusterStatus } from '../types'
 
 type HomeState = 'loading' | 'ready' | 'error'
 
-type NavigateTarget = 'workspace' | 'performance' | 'observability' | 'operations'
+type NavigateTarget = 'workspace' | 'performance' | 'operations'
 
 interface HomePageProps {
   onNavigate: (page: NavigateTarget) => void
@@ -13,21 +13,21 @@ interface HomePageProps {
 
 const capabilityGroups = [
   {
-    title: 'Control room',
-    body: 'Run a fault, follow the workload response, and inspect the cluster from one live surface.',
+    title: 'Workspace',
+    body: 'Run a controlled fault, follow the active target, and watch the system settle back into shape.',
     page: 'workspace' as const,
     tone: 'teal',
   },
   {
-    title: 'Load view',
-    body: 'Compare baseline, scale-out, and cache runs without burying the story in raw benchmark output.',
+    title: 'Performance',
+    body: 'Compare baseline, scale-out, and cache behavior in one place without burying the story in raw load output.',
     page: 'performance' as const,
     tone: 'blue',
   },
   {
-    title: 'Signal view',
-    body: 'Bring alerts, golden signals, logs, and runbooks into one calmer operating surface.',
-    page: 'observability' as const,
+    title: 'Operations',
+    body: 'Keep the supporting notes, references, and platform context close without crowding the main workflows.',
+    page: 'operations' as const,
     tone: 'orange',
   },
 ]
@@ -87,12 +87,13 @@ export default function HomePage({ onNavigate }: HomePageProps) {
         <div className="landing-hero__copy">
           <p className="eyebrow">Dev2Prod</p>
           <h1 className="landing-hero__headline">
-            <span>Operate one service</span>
-            <span className="landing-hero__headline-fill">from fault to steady state.</span>
+            <span>Follow application behavior</span>
+            <span className="landing-hero__headline-fill">from fault drills to scale checks.</span>
           </h1>
           <p className="landing-hero__intro">
-            Keep the live service readable while it is being stressed, scaled, or traced.
-            The product stays focused on one workload and one clean operating flow.
+            Keep the live platform readable while it is being stressed, scaled, and recovered.
+            The current demo is pinned to one guarded cluster target today, but the product
+            model is broader than this single path.
           </p>
           <div className="landing-hero__actions">
             <button
@@ -105,15 +106,13 @@ export default function HomePage({ onNavigate }: HomePageProps) {
             <button
               type="button"
               className="button"
-              onClick={() => onNavigate('observability')}
+              onClick={() => onNavigate('performance')}
             >
-              View observability
+              Open performance
             </button>
             <a
               className="button"
               href="/shortener/"
-              target="_blank"
-              rel="noreferrer"
             >
               Open shortener
             </a>
@@ -155,12 +154,12 @@ export default function HomePage({ onNavigate }: HomePageProps) {
 
           <dl className="landing-hero__facts">
             <div>
-              <dt>Scope</dt>
-              <dd>One cluster, one namespace, one workload</dd>
+              <dt>Current demo</dt>
+              <dd>One guarded target in one live cluster</dd>
             </div>
             <div>
               <dt>Focus</dt>
-              <dd>Faults, scale, and signals in one surface</dd>
+              <dd>Fault drills, recovery, and scale checks</dd>
             </div>
             <div>
               <dt>Mode</dt>
@@ -173,10 +172,10 @@ export default function HomePage({ onNavigate }: HomePageProps) {
       <section className="capability-band">
         <div className="section-heading">
           <p className="eyebrow">Core surfaces</p>
-          <h2>Three focused views, one operating rhythm.</h2>
+          <h2>Three focused surfaces and one live demo workload.</h2>
           <p>
-            Each surface carries one job, keeps the next action obvious, and stays connected
-            to the same live system.
+            Each surface carries one job, keeps the next action obvious, and stays anchored
+            to the same running system.
           </p>
         </div>
 
@@ -200,8 +199,8 @@ export default function HomePage({ onNavigate }: HomePageProps) {
 
       <section className="landing-detail">
         <div className="section-heading">
-          <p className="eyebrow">What makes it work</p>
-          <h2>Built around one service, not a bloated platform story.</h2>
+          <p className="eyebrow">Platform shape</p>
+          <h2>Scoped tightly for the demo, but framed like a broader operating product.</h2>
         </div>
 
         <div className="detail-columns">
@@ -220,10 +219,10 @@ export default function HomePage({ onNavigate }: HomePageProps) {
             </p>
           </div>
           <div>
-            <strong>Response without clutter</strong>
+            <strong>Locked, not limited</strong>
             <p>
-              Logs, alerts, and golden signals belong in one calm surface that stays useful
-              under pressure.
+              The current live target is intentionally constrained so the demo stays stable,
+              but the product language should still point beyond that guardrail.
             </p>
           </div>
         </div>

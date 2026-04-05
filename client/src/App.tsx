@@ -5,14 +5,26 @@ import PerformancePage from './pages/PerformancePage'
 import SurfacePage from './pages/SurfacePage'
 import WorkspacePage from './pages/WorkspacePage'
 
-type PageName = 'home' | 'workspace' | 'performance' | 'observability' | 'operations'
+type PageName = 'home' | 'workspace' | 'performance' | 'operations'
 
-const pageMeta: Array<{ page: PageName; label: string; path: string }> = [
-  { page: 'home', label: 'Home', path: '/' },
-  { page: 'workspace', label: 'Workspace', path: '/workspace' },
-  { page: 'performance', label: 'Performance', path: '/performance' },
-  { page: 'observability', label: 'Observability', path: '/observability' },
-  { page: 'operations', label: 'Operations', path: '/operations' },
+type InternalNavEntry = { kind: 'internal'; page: PageName; label: string; path: string }
+type ExternalNavEntry = { kind: 'external'; label: string; path: string; info?: string }
+
+const pageMeta: InternalNavEntry[] = [
+  { kind: 'internal', page: 'home', label: 'Home', path: '/' },
+  { kind: 'internal', page: 'workspace', label: 'Workspace', path: '/workspace' },
+  { kind: 'internal', page: 'performance', label: 'Performance', path: '/performance' },
+  { kind: 'internal', page: 'operations', label: 'Operations', path: '/operations' },
+]
+
+const navEntries: Array<InternalNavEntry | ExternalNavEntry> = [
+  ...pageMeta,
+  {
+    kind: 'external',
+    label: 'URL Shortener',
+    path: '/shortener/',
+    info: 'This is the live demo workload. The platform is broader than this one target, but the cluster stays locked today so the demo remains predictable.',
+  },
 ]
 
 function pageFromPath(pathname: string): PageName {
@@ -49,6 +61,29 @@ function AppNavLink({
   )
 }
 
+function NavInfo({ label }: { label: string }) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <span
+      className="nav-info"
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+    >
+      <button
+        type="button"
+        className="nav-info__trigger"
+        aria-label={label}
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+      >
+        i
+      </button>
+      {open ? <span className="nav-info__panel">{label}</span> : null}
+    </span>
+  )
+}
+
 function renderPage(page: PageName, onNavigate: (nextPage: PageName) => void) {
   if (page === 'home') {
     return <HomePage onNavigate={onNavigate} />
@@ -62,49 +97,24 @@ function renderPage(page: PageName, onNavigate: (nextPage: PageName) => void) {
     return <PerformancePage />
   }
 
-  if (page === 'observability') {
-    return (
-      <SurfacePage
-        eyebrow="Observability"
-        title="Alerts, signals, and logs without the dashboard sprawl."
-        intro="This surface will connect golden signals, alert state, remote log access, and the runbook path into one calmer operating view."
-        summary="The page should read like a command center, not like a collage of tools."
-        sections={[
-          {
-            title: 'Golden signals',
-            body: 'Lead with latency, traffic, errors, and saturation in a clean summary that helps someone orient quickly.',
-          },
-          {
-            title: 'Alert path',
-            body: 'Show the active rules, delivery path, and the channel operators would actually use during an incident.',
-          },
-          {
-            title: 'Diagnosis flow',
-            body: 'Make it easy to move from alert to logs to runbook so the incident story stays coherent during the demo.',
-          },
-        ]}
-      />
-    )
-  }
-
   return (
     <SurfacePage
       eyebrow="Operations"
-      title="Keep release, rollback, and reference material close at hand."
-      intro="This surface will gather runbooks, deploy notes, environment reference, benchmark outputs, and the links that support day-to-day operating work."
-      summary="Everything operational should stay easy to find, easy to scan, and easy to trust."
+      title="Keep reference material and platform context in one quieter support surface."
+      intro="This page holds the lower-frequency material that supports the main workflows: release context, environment notes, and the links that help people orient quickly."
+      summary="Use this area for supporting context, not as another primary workflow."
       sections={[
         {
-          title: 'Release notes',
-          body: 'Keep deployment, rollback, and environment reference material together so operators do not need to jump between scattered files.',
+          title: 'Release context',
+          body: 'Keep deployment notes, environment references, and the rollout path together so people do not need to hunt across the product.',
         },
         {
-          title: 'Benchmark records',
-          body: 'Group scale lab outputs, cache notes, and recent load summaries into one obvious operating surface.',
+          title: 'Supporting proof',
+          body: 'Use this area for low-frequency supporting material like benchmark records, links, and operating notes that should not clutter the main pages.',
         },
         {
           title: 'Reference links',
-          body: 'Point straight to logs, metrics, dashboards, runbooks, and key system notes with no vague labels.',
+          body: 'Point straight to the useful references with plain labels so the user can move from the product into the supporting material without guessing.',
         },
       ]}
     />
@@ -154,20 +164,29 @@ export default function App() {
           <img src="/favicon.png" alt="" className="site-brand__mark" />
           <span>
             <strong>Dev2Prod</strong>
-            <small>Operations cockpit</small>
+            <small>Resilience and scale workspace</small>
           </span>
         </a>
 
         <nav className="site-nav" aria-label="Primary">
-          {pageMeta.map((entry) => (
-            <AppNavLink
-              key={entry.page}
-              active={entry.page === page}
-              href={entry.path}
-              label={entry.label}
-              onNavigate={() => navigate(entry.page)}
-            />
-          ))}
+          {navEntries.map((entry) =>
+            entry.kind === 'internal' ? (
+              <AppNavLink
+                key={entry.page}
+                active={entry.page === page}
+                href={entry.path}
+                label={entry.label}
+                onNavigate={() => navigate(entry.page)}
+              />
+            ) : (
+              <span key={entry.path} className="site-nav__item">
+                <a href={entry.path} className="site-nav__link">
+                  {entry.label}
+                </a>
+                {entry.info ? <NavInfo label={entry.info} /> : null}
+              </span>
+            ),
+          )}
         </nav>
       </header>
 
