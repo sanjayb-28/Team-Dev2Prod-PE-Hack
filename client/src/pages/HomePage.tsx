@@ -24,12 +24,6 @@ const capabilityGroups = [
     page: 'performance' as const,
     tone: 'blue',
   },
-  {
-    title: 'Documentation',
-    body: 'Keep the platform architecture, operating model, and supporting context close without crowding the main workflows.',
-    page: 'operations' as const,
-    tone: 'orange',
-  },
 ]
 
 function statusLabel(status: string | undefined) {
@@ -166,14 +160,20 @@ export default function HomePage({ onNavigate }: HomePageProps) {
       <section className="capability-band">
         <div className="section-heading">
           <p className="eyebrow">Core surfaces</p>
-          <h2>Three focused surfaces around one cluster operating picture.</h2>
+          <h2>Two primary surfaces for cluster resilience work.</h2>
           <p>
-            Each surface carries one job, keeps the next action obvious, and stays anchored
-            to the same live cluster state.
+            Workspace handles controlled faults and recovery. Performance handles scale,
+            cache behavior, and benchmark evidence.
           </p>
         </div>
 
-        <div className="capability-grid">
+        <div
+          className={
+            capabilityGroups.length === 2
+              ? 'capability-grid capability-grid--pair'
+              : 'capability-grid'
+          }
+        >
           {capabilityGroups.map((group) => (
             <button
               key={group.title}

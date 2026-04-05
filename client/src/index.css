@@ -538,6 +538,12 @@ button:disabled {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1rem;
+  align-items: stretch;
+}
+
+.capability-grid--pair {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 100%;
 }
 
 .capability-tile {
@@ -545,6 +551,7 @@ button:disabled {
   gap: 0.55rem;
   text-align: left;
   padding: 1.2rem;
+  min-height: 10rem;
   background: #fffefb;
   transition:
     border-color 180ms ease,

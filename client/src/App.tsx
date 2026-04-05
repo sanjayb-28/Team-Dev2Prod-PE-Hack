@@ -101,20 +101,20 @@ function renderPage(page: PageName, onNavigate: (nextPage: PageName) => void) {
     <SurfacePage
       eyebrow="Documentation"
       title="Keep the platform architecture, operating model, and product story in one place."
-      intro="This page explains how the control plane, workload surface, and scale lab fit together so the product stays understandable beyond the live workflows."
-      summary="Use this area to document how the platform is shaped, what it is optimized to show, and how the current live cluster maps onto the broader product model."
+      intro="This page explains how the product is structured, how the main surfaces relate to one another, and what the platform is designed to make visible."
+      summary="Use this area to document the platform itself: the architecture, the user model, and the core ideas behind the workspace, performance, and workload surfaces."
       sections={[
         {
           title: 'Architecture',
-          body: 'The platform combines a client surface, a control plane, and a workload running in the cluster. The control plane reads cluster state, starts controlled experiments, and returns the evidence back to the client.',
+          body: 'Dev2Prod is organized around a client shell, a control plane, and a live application surface. The client keeps the operating picture readable, while the control plane gathers state, starts experiments, and returns the resulting evidence.',
         },
         {
           title: 'Operating model',
-          body: 'Workspace focuses on controlled faults and recovery, while Performance focuses on scale, cache behavior, and benchmark evidence. Each surface stays narrow so the system story stays readable.',
+          body: 'Workspace focuses on controlled faults and recovery, Performance focuses on scale and cache behavior, and Documentation explains how the product is shaped. Each surface stays narrow so the platform remains easy to read.',
         },
         {
           title: 'Product story',
-          body: 'The live cluster is intentionally scoped for safe testing, but the product model is broader: point the platform at cluster workloads, observe behavior under stress, and keep the evidence legible for operators.',
+          body: 'The product is built to help operators understand application behavior under pressure. Instead of scattering signals across dashboards, terminals, and notes, Dev2Prod keeps the story of stress, recovery, and scale in one place.',
         },
       ]}
     />
