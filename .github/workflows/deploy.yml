@@ -171,7 +171,13 @@ jobs:
           done
 
       - name: Apply platform manifests
-        run: kubectl apply -f "$RUNNER_TEMP/digitalocean-k8s"
+        run: |
+          for file in "$RUNNER_TEMP"/digitalocean-k8s/*.yaml; do
+            if [ "$(basename "$file")" = "workload-seed.yaml" ]; then
+              continue
+            fi
+            kubectl apply -f "$file"
+          done
 
       - name: Verify rollout
         run: |
@@ -182,6 +188,7 @@ jobs:
       - name: Seed managed database
         run: |
           kubectl -n "$DO_NAMESPACE" delete job workload-seed --ignore-not-found=true
+          kubectl -n "$DO_NAMESPACE" wait --for=delete job/workload-seed --timeout=120s || true
           kubectl -n "$DO_NAMESPACE" apply -f "$RUNNER_TEMP/digitalocean-k8s/workload-seed.yaml"
           kubectl -n "$DO_NAMESPACE" wait --for=condition=complete job/workload-seed --timeout=300s
           kubectl -n "$DO_NAMESPACE" logs job/workload-seed
