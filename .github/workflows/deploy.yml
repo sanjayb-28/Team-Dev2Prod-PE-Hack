@@ -2,11 +2,6 @@ name: Deploy to DigitalOcean
 
 on:
   workflow_dispatch:
-  workflow_run:
-    workflows:
-      - Tests and Gate
-    types:
-      - completed
 
 concurrency:
   group: deploy-production
@@ -14,12 +9,6 @@ concurrency:
 
 jobs:
   deploy:
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (
-        github.event.workflow_run.conclusion == 'success' &&
-        github.event.workflow_run.head_branch == 'main'
-      )
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -35,7 +24,7 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && github.sha || github.event.workflow_run.head_sha }}
+          ref: ${{ github.sha }}
 
       - name: Install doctl
         uses: digitalocean/action-doctl@v2
@@ -81,12 +70,7 @@ jobs:
 
       - name: Prepare image names
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            DEPLOY_SHA="${{ github.sha }}"
-          else
-            DEPLOY_SHA="${{ github.event.workflow_run.head_sha }}"
-          fi
-
+          DEPLOY_SHA="${{ github.sha }}"
           SHORT_SHA="$(printf '%s' "$DEPLOY_SHA" | cut -c1-7)"
           echo "DEPLOY_SHA=$DEPLOY_SHA" >> "$GITHUB_ENV"
           echo "SHORT_SHA=$SHORT_SHA" >> "$GITHUB_ENV"
